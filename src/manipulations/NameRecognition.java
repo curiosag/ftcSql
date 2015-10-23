@@ -1,5 +1,8 @@
 package manipulations;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import com.google.common.base.Optional;
 
 import cg.common.check.Check;
@@ -8,62 +11,36 @@ public class NameRecognition {
 
 	public NameRecognitionState state = NameRecognitionState.INITIAL;
 
-	protected String[] names = new String[2];
-	private int count = 0;
-	
-	private void add(String name)
-	{
-		Check.isTrue(count < 2);
-		names[count] = name;
-		count++;
-	}
+	protected Map<NameRecognitionState, String> names = new HashMap<NameRecognitionState, String>();
 
 	/**
-	 * reads token sequences <name1> [<separator> <name2>] where 
-	 * separator is either "." or "AS" 
-	 * like for "field_name", "table_name.field_name", "table_name" or "table_name AS alias"
+	 * reads token sequences <name1> [<separator> <name2>] where separator is
+	 * either "." or "AS" like for "field_name", "table_name.field_name",
+	 * "table_name" or "table_name AS alias"
 	 */
-	
+
 	public NameRecognition() {
+		names.put(NameRecognitionState.NAME1, null);
+		names.put(NameRecognitionState.NAME2, null);
 	}
 
-	public void digest(String t)
-	{
+	public void digest(String t) {
 		Check.notEmpty(t);
-		
+
 		if (state == NameRecognitionState.ERROR)
 			return;
-		
+
 		state = state.next(t);
 		if (state.in(NameRecognitionState.NAME1, NameRecognitionState.NAME2))
-			add(t);
+			names.put(state, t);
 	};
-	
-	public Optional<String> getName1()
-	{
-		checkStateAndValues();
-		
-		if (state.in(NameRecognitionState.NAME1, NameRecognitionState.NAME2, NameRecognitionState.QUALIFIER))
-			return Optional.of(names[0]);
-		else
-			return Optional.absent();
+
+	public Optional<String> getName1() {
+		return Optional.fromNullable(names.get(NameRecognitionState.NAME1));
 	}
-	
-	public Optional<String> getName2()
-	{
-		checkStateAndValues();
-		
-		if (state == NameRecognitionState.NAME2)
-			return Optional.of(names[1]);
-		else
-			return Optional.absent();	
+
+	public Optional<String> getName2() {
+		return Optional.fromNullable(names.get(NameRecognitionState.NAME2));
 	}
-	
-	protected void checkStateAndValues()
-	{
-		if (state == NameRecognitionState.ERROR)
-			return;
-		
-		Check.isTrue(count == 0 && state == NameRecognitionState.INITIAL || count == 1 && state.in(NameRecognitionState.NAME1, NameRecognitionState.QUALIFIER) || count == 2 && state == NameRecognitionState.NAME2);
-	}
+
 }

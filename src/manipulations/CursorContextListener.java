@@ -10,7 +10,6 @@ import org.antlr.v4.runtime.tree.TerminalNode;
 import com.google.common.base.Optional;
 
 import cg.common.core.Op;
-import gc.common.structures.IntTuple;
 import gc.common.structures.OrderedIntTuple;
 import parser.FusionTablesSqlBaseListener;
 import parser.FusionTablesSqlParser;
@@ -28,6 +27,30 @@ public class CursorContextListener extends FusionTablesSqlBaseListener {
 	public CursorContextListener(int cursorIndex) {
 		this.cursorIndex = cursorIndex;
 	}
+
+	/**
+	 * there are repeated calls for startRecognition, for the cases:
+	 * 
+	 * Result_columnContext ... empty and error cases where no column names
+	 * follow
+	 * 
+	 * Ordering_termContext ... same for ordering term
+	 * 
+	 * ExprContext ... and for expressions, though this remains ambiguous this
+	 * way e.g. how do you want to tell an incomplete numeric literal("1.") from
+	 * a pathological incomplete Qualified_column_nameContext where the table
+	 * name is "1"?
+	 * 
+	 * Result_columnContext -> Aggregate_expContext ->
+	 * Qualified_column_nameContext ... comes with extra tokens "AVG(" or "SUM("
+	 * that need to be skipped - or treated in the state machine
+	 * (NameRecognitionState) which would be more complicated
+	 * 
+	 * Qualified_column_nameContext ... stand alone version
+	 * 
+	 * expressions are a special case
+	 * 
+	 */
 
 	@Override
 	public void enterTable_name_with_alias(FusionTablesSqlParser.Table_name_with_aliasContext ctx) {
@@ -50,13 +73,52 @@ public class CursorContextListener extends FusionTablesSqlBaseListener {
 	}
 
 	@Override
+	public void enterOrdering_term(FusionTablesSqlParser.Ordering_termContext ctx) {
+		startRecognition(new NameRecognitionColumn(), ctx);
+	}
+
+	@Override
+	public void exitOrdering_term(FusionTablesSqlParser.Ordering_termContext ctx) {
+		stopRecognition(ctx);
+	}
+
+	@Override
+	public void enterExpr(FusionTablesSqlParser.ExprContext ctx) {
+		startRecognition(new NameRecognitionColumn(), ctx);
+	}
+
+	@Override
+	public void exitExpr(FusionTablesSqlParser.ExprContext ctx) {
+		stopRecognition(ctx);
+	}
+
+	@Override
 	public void enterQualified_column_name(FusionTablesSqlParser.Qualified_column_nameContext ctx) {
-		//startRecognition(new NameRecognitionColumn(), ctx);
+		startRecognition(new NameRecognitionColumn(), ctx);
 	}
 
 	@Override
 	public void exitQualified_column_name(FusionTablesSqlParser.Qualified_column_nameContext ctx) {
-		//stopRecognition(ctx);
+		stopRecognition(ctx);
+	}
+
+	@Override
+	public void visitTerminal(TerminalNode node) {
+		recognize(node.getText(), getStop(node));
+		debugTerminal(node);
+	}
+
+	@Override
+	public void visitErrorNode(ErrorNode node) {
+		if (!isGenericError(node.getText()))
+			recognize(node.getText(), getStop(node)); // node.getSymbol.getText()
+														// returns the same as
+														// node.getText()
+		debugErrorNode(node);
+	}
+
+	private boolean isGenericError(String errorString) {
+		return errorString.startsWith("<") && errorString.endsWith(">");
 	}
 
 	private void startRecognition(NameRecognition current, ParserRuleContext ctx) {
@@ -70,10 +132,16 @@ public class CursorContextListener extends FusionTablesSqlBaseListener {
 		if (current.getClass() == NameRecognitionTable.class)
 			tableList.add((NameRecognitionTable) current);
 
-		debugStopRecognition(range);
+		debugStartRecognition(range);
+
+	}
+
+	private boolean triggeredByResultColumnContext() {
+		return currentRecognition.isPresent();
 	}
 
 	private void stopRecognition(ParserRuleContext ctx) {
+
 		currentRecognition = Optional.absent();
 	}
 
@@ -85,7 +153,7 @@ public class CursorContextListener extends FusionTablesSqlBaseListener {
 		return ctx.start.getStartIndex();
 	}
 
-	private void debugStopRecognition(OrderedIntTuple range) {
+	private void debugStartRecognition(OrderedIntTuple range) {
 		if (debug) {
 			String within = cursorWithinBoundaries(range) ? " match" : " no match";
 			System.out.println(String.format("Recognition boundaries lo:%d hi:%d cursor at: %d -> %s", range.lo(),
@@ -97,20 +165,8 @@ public class CursorContextListener extends FusionTablesSqlBaseListener {
 		return Op.between(o.lo(), cursorIndex, o.hi());
 	}
 
-	@Override
-	public void visitTerminal(TerminalNode node) {
-		recognize(node.getText(), getStop(node));
-		debugTerminal(node);
-	}
-
-	@Override
-	public void visitErrorNode(ErrorNode node) {
-		recognize(node.getText(), getStop(node));
-		debugErrorNode(node);
-	}
-
 	private void recognize(String token, int stopIndex) {
-		if (currentRecognition.isPresent()) {
+		if (triggeredByResultColumnContext()) {
 			currentRecognition.get().digest(token);
 			debugRecognize(token);
 		}
@@ -173,8 +229,6 @@ public class CursorContextListener extends FusionTablesSqlBaseListener {
 	public void exitEveryRule(ParserRuleContext ctx) {
 		sayContext(ctx, "exit");
 	}
-
-	// debug stuff from here on
 
 	private String markPos(int pos) {
 		String result = " "; // for 1st quote around query

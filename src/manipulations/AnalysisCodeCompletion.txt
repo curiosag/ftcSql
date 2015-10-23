@@ -3,22 +3,49 @@
 #	data extraction for code completion
 #
 ###################################################
+
+Token range and cursor position. Indexing is 0 based.
+
+Let's take  		"Select b|"  
+where "|" is the cursor  
+
+index of b is 7, token range of b is 7 to 7
+the cursor(|) is at index 8, after b
+ 
+recognition of the context of the cursor must always take 
+
+	for the case above: ((index of cursor) - 1) 
+
+	for a case like "Select |b": (index of cursor)
+	
+	otherwise it could be both, like in "Select  ab|c"  
+
+###################################################
 #
-# RESULT COLUMN NAMES
+# COLUMN NAMES
+#
+# relevant contexts
+#	result column context (after "select")
+#	aggregate and spatial statements
+#	ordering statements
+#	in expressions
 #
 # cases to cover
 #
-# only context result column, but no column info
-#	immediately after "select"
-#	after "," following previous column
+# only context, but no column data
+#	in result column context:
+#		immediately after "select"
+#		after "," following previous column
+#	e.g. aggregate statements after "("
 #
-# column info 
-# qualifying table name (before ".") without column info	
-# qualifying table name (before ".") with column info
+# only qualifying table name, but no column name ("select A. from A")
+# only column data, no qualifying table name  
+# 		ok case ("select a from A")
+#   	fragmentary case ("select .a from A")
 #
-# result in all cases: context info "result column"
+# result in all cases: context info "column"
 #
-
+#
 ######################################################
 # symptom: error plus exception, only Result_columnContext without value
 #

@@ -10,7 +10,7 @@ public enum NameRecognitionState {
 			Check.notEmpty(input);
 
 			if (isSeparator(input))
-				return ERROR;
+				return QUALIFIER;
 			else
 				return NAME1;
 		}

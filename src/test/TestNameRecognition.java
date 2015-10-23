@@ -40,11 +40,11 @@ public class TestNameRecognition {
 
 	private void testNameRecognition(String separator) {
 		check(sa(), NameRecognitionState.INITIAL, null, null);
-		check(sa(separator), NameRecognitionState.ERROR, null, null);
-		check(sa("a", "b"), NameRecognitionState.ERROR, null, null);
+		check(sa(separator), NameRecognitionState.QUALIFIER, null, null);
+		check(sa("a", "b"), NameRecognitionState.ERROR, "a", null);
 		check(sa("a", separator), NameRecognitionState.QUALIFIER, "a", null);
-		check(sa("a", separator, "b", separator), NameRecognitionState.ERROR, null, null);
-		check(sa("a", separator, "b", "c"), NameRecognitionState.ERROR, null, null);
+		check(sa("a", separator, "b", separator), NameRecognitionState.ERROR, "a", "b");
+		check(sa("a", separator, "b", "c"), NameRecognitionState.ERROR, "a", "b");
 		check(sa("a"), NameRecognitionState.NAME1, "a", null);
 		check(sa("a", separator, "b"), NameRecognitionState.NAME2, "a", "b");
 	}
