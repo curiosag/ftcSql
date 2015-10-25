@@ -87,7 +87,7 @@ public class TestCursorContext {
 	@Test
 	public void testContextExpression() {
 		testPermutations("Select a from b where %s;");
-		testPermutations("Select a from b where 1=1 or 4=%s");
+		testPermutations("Select a from b where %s=1");
 	}
 
 	@Test

@@ -26,11 +26,12 @@ public class TestNameRecognition {
 	private void digest(NameRecognition r, String[] tokens)
 	{
 		for (int i = 0; i < tokens.length; i++)
-			r.digest(tokens[i]);
+			r.digest(new MockToken(tokens[i]));
 	}
 	
 	private void check(String[] tokens, NameRecognitionState stateExpected, String name1Expected,
 			String name2Expected) {
+		System.out.println("---------------------------");
 		NameRecognition r = getNR();
 		digest(r, tokens);
 		assertEquals(stateExpected, r.state);
@@ -52,7 +53,6 @@ public class TestNameRecognition {
 	@Test
 	public void testNameRecognition() {
 		testNameRecognition(".");
-		testNameRecognition("AS");
 	}
 
 	
