@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
@@ -104,14 +105,14 @@ public class CursorContextListener extends FusionTablesSqlBaseListener {
 
 	@Override
 	public void visitTerminal(TerminalNode node) {
-		recognize(node.getText(), getStop(node));
+		recognize(node.getSymbol(), getStop(node));
 		debugTerminal(node);
 	}
 
 	@Override
 	public void visitErrorNode(ErrorNode node) {
 		if (!isGenericError(node.getText()))
-			recognize(node.getText(), getStop(node)); // node.getSymbol.getText()
+			recognize(node.getSymbol(), getStop(node)); // node.getSymbol.getText()
 														// returns the same as
 														// node.getText()
 		debugErrorNode(node);
@@ -165,16 +166,16 @@ public class CursorContextListener extends FusionTablesSqlBaseListener {
 		return Op.between(o.lo(), cursorIndex, o.hi());
 	}
 
-	private void recognize(String token, int stopIndex) {
+	private void recognize(Token token, int stopIndex) {
 		if (triggeredByResultColumnContext()) {
 			currentRecognition.get().digest(token);
 			debugRecognize(token);
 		}
 	}
 
-	private void debugRecognize(String token) {
+	private void debugRecognize(Token token) {
 		if (debug)
-			System.out.println("recognizing " + token);
+			System.out.println("recognizing " + token.getText());
 
 	}
 

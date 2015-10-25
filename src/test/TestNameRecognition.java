@@ -26,11 +26,12 @@ public class TestNameRecognition {
 	private void digest(NameRecognition r, String[] tokens)
 	{
 		for (int i = 0; i < tokens.length; i++)
-			r.digest(tokens[i]);
+			r.digest(new MockToken(tokens[i]));
 	}
 	
 	private void check(String[] tokens, NameRecognitionState stateExpected, String name1Expected,
 			String name2Expected) {
+		System.out.println("---------------------------");
 		NameRecognition r = getNR();
 		digest(r, tokens);
 		assertEquals(stateExpected, r.state);
@@ -46,13 +47,20 @@ public class TestNameRecognition {
 		check(sa("a", separator, "b", separator), NameRecognitionState.ERROR, "a", "b");
 		check(sa("a", separator, "b", "c"), NameRecognitionState.ERROR, "a", "b");
 		check(sa("a"), NameRecognitionState.NAME1, "a", null);
-		check(sa("a", separator, "b"), NameRecognitionState.NAME2, "a", "b");
+		check(sa("a", separator, "b", "="), NameRecognitionState.EXPR_LEFT_SIDE_COMPLETE, "a", "b");
+		check(sa("a", separator, "="), NameRecognitionState.EXPR_LEFT_SIDE_COMPLETE, "a", null);
+		check(sa("a", "="), NameRecognitionState.EXPR_LEFT_SIDE_COMPLETE, "a", null);
+		check(sa("="), NameRecognitionState.EXPR_LEFT_SIDE_COMPLETE, null, null);
+		check(sa("ST_INTERSECTS", "(", "a", separator, "b", ")"), NameRecognitionState.MAYBE_EXPR_LEFT_SIDE_COMPLETE, "a", "b");
+		check(sa("ST_INTERSECTS", "(", separator, "b", ")"), NameRecognitionState.MAYBE_EXPR_LEFT_SIDE_COMPLETE, null, "b");
+		check(sa("ST_INTERSECTS", "(", "a", separator, ")"), NameRecognitionState.MAYBE_EXPR_LEFT_SIDE_COMPLETE, "a", null);
+		check(sa("ST_INTERSECTS", "(", "a", ")"), NameRecognitionState.MAYBE_EXPR_LEFT_SIDE_COMPLETE, "a", null);
+		check(sa("ST_INTERSECTS", "(", "a"), NameRecognitionState.NAME1, "a", null);
 	}
 	
 	@Test
 	public void testNameRecognition() {
 		testNameRecognition(".");
-		testNameRecognition("AS");
 	}
 
 	
