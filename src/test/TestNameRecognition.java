@@ -47,7 +47,11 @@ public class TestNameRecognition {
 		check(sa("a", separator, "b", separator), NameRecognitionState.ERROR, "a", "b");
 		check(sa("a", separator, "b", "c"), NameRecognitionState.ERROR, "a", "b");
 		check(sa("a"), NameRecognitionState.NAME1, "a", null);
-		check(sa("a", separator, "b"), NameRecognitionState.NAME2, "a", "b");
+		check(sa("a", separator, "b", "="), NameRecognitionState.EXPR_EMPTY, "a", "b");
+		check(sa("a", separator, "="), NameRecognitionState.EXPR_EMPTY, "a", null);
+		check(sa("a", "="), NameRecognitionState.EXPR_EMPTY, "a", null);
+		check(sa("a", "contains"), NameRecognitionState.EXPR_EMPTY, "a", null);
+		check(sa("=", "17"), NameRecognitionState.EXPR_EMPTY, null, null);
 	}
 	
 	@Test

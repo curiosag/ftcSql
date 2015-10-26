@@ -4,8 +4,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.google.common.base.Optional;
+
 import cg.common.check.Check;
 import cg.common.core.Logging;
+import interfeces.ColumnInfo;
 import interfeces.Connector;
 import interfeces.TableInfo;
 import manipulations.results.RefactoredSql;
@@ -13,6 +16,7 @@ import manipulations.results.ResolvedTableNames;
 
 public class QueryHandler {
 
+	public final boolean ADD_DETAILS = true;
 	private final Logging logger;
 	private final Connector connector;
 	private final boolean preview = true;
@@ -29,19 +33,33 @@ public class QueryHandler {
 		logger.Info(msg);
 	}
 
-	private QueryManipulator createRefactoring(String query) {
+	private QueryManipulator createManipulator(String query) {
 		return new QueryManipulator(connector, logger, query);
 	}
 
-	public List<TableInfo> getTableList() {
-		return connector.getTableInfo();
+	public List<TableInfo> getTableList(boolean addDetails) {
+		List<TableInfo> info = connector.getTableInfo();
+		List<TableInfo> result;
+		if (addDetails)
+			result = info;
+		else 
+			result = flatten(info);
+		return result; 
+	}
+
+	private List<TableInfo> flatten(List<TableInfo> info) {
+		List<ColumnInfo> noColumns = new ArrayList<ColumnInfo>();
+		List<TableInfo> result = new ArrayList<TableInfo>();
+		for (TableInfo t : info) 
+			result.add(new TableInfo(t.name, t.id, t.description, noColumns));
+		return result;
 	}
 
 	public String getTableInfo() {
 		StringBuilder sb = new StringBuilder();
 		List<String> names = new ArrayList<String>();
 
-		for (TableInfo i : getTableList()) {
+		for (TableInfo i : getTableList(ADD_DETAILS)) {
 			if (names.contains(i.name))
 				log("Duplicate table name: '" + i.name + "' name to ID substitution may fail.");
 
@@ -63,7 +81,7 @@ public class QueryHandler {
 	}
 
 	private String hdlQuery(String query, QueryManipulator ftr, boolean preview) {
-		RefactoredSql r = createRefactoring(query).refactorQuery();
+		RefactoredSql r = createManipulator(query).refactorQuery();
 		if (r.problemsEncountered.isPresent())
 			return r.problemsEncountered.get();
 		else if (preview)
@@ -92,7 +110,7 @@ public class QueryHandler {
 		logger.Info("processing :" + query);
 
 		try {
-			QueryManipulator ftr = createRefactoring(query);
+			QueryManipulator ftr = createManipulator(query);
 			switch (ftr.statementType) {
 			case ALTER:
 				return hdlAlterTable(ftr, execute);
@@ -117,7 +135,7 @@ public class QueryHandler {
 	}
 
 	public String previewExecutedSql(String query) {
-		QueryManipulator ftr = createRefactoring(query);
+		QueryManipulator ftr = createManipulator(query);
 
 		switch (ftr.statementType) {
 		
@@ -139,4 +157,15 @@ public class QueryHandler {
 
 	}
 
+	private int placeInValidTokenRange(String query, int cursorPos) {
+		if (cursorPos == query.length() - 1 && cursorPos > 0)
+			cursorPos --;
+		return cursorPos;
+	}
+	
+	public Optional<CursorContext> getCursorContext(String query, int cursorPos)
+	{
+		return createManipulator(query).getCursorContext(placeInValidTokenRange(query, cursorPos));
+	}
+	
 }

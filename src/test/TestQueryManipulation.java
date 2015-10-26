@@ -122,7 +122,7 @@ public class TestQueryManipulation {
 		log(names.problemsEncountered.get());
 	}
 
-	// @Test
+	 @Test
 	public void testResolveSelectIdentifiers() {
 		QueryManipulator ftr = test.Util.getManipulator("Select * from table1;");
 		RefactoredSql r = ftr.refactorQuery();
@@ -157,7 +157,7 @@ public class TestQueryManipulation {
 
 	}
 
-	//@Test
+	@Test
 	public void testStatemntSplit() {
 		QueryManipulator m = test.Util.getManipulator("Select * from table1; Select a,b from table2;");
 		Splits s = m.splitStatements();

@@ -16,7 +16,10 @@ import parser.FusionTablesSqlBaseListener;
 import parser.FusionTablesSqlParser;
 
 public class CursorContextListener extends FusionTablesSqlBaseListener {
-	private final boolean debug = true;
+	/**
+	 *  debug switch
+	 */
+	private final static boolean debug = false;
 
 	private final int cursorIndex;
 
@@ -41,6 +44,9 @@ public class CursorContextListener extends FusionTablesSqlBaseListener {
 	 * way e.g. how do you want to tell an incomplete numeric literal("1.") from
 	 * a pathological incomplete Qualified_column_nameContext where the table
 	 * name is "1"?
+	 * 
+	 * Intersects_qualified_column_nameContext ... for the "ST_INTERSECTS"
+	 * expression
 	 * 
 	 * Result_columnContext -> Aggregate_expContext ->
 	 * Qualified_column_nameContext ... comes with extra tokens "AVG(" or "SUM("
@@ -100,6 +106,18 @@ public class CursorContextListener extends FusionTablesSqlBaseListener {
 
 	@Override
 	public void exitQualified_column_name(FusionTablesSqlParser.Qualified_column_nameContext ctx) {
+		stopRecognition(ctx);
+	}
+
+	@Override
+	public void enterQualified_column_name_in_expression(
+			FusionTablesSqlParser.Qualified_column_name_in_expressionContext ctx) {
+		startRecognition(new NameRecognitionColumn(), ctx);
+	}
+
+	@Override
+	public void exitQualified_column_name_in_expression(
+			FusionTablesSqlParser.Qualified_column_name_in_expressionContext ctx) {
 		stopRecognition(ctx);
 	}
 

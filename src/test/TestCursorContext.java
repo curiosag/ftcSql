@@ -87,7 +87,10 @@ public class TestCursorContext {
 	@Test
 	public void testContextExpression() {
 		testPermutations("Select a from b where %s;");
-		testPermutations("Select a from b where %s=1");
+		testPermutations("Select a from b where A=1 and %s=2");
+		testPermutations("Select a from b where st_intersects(%s, circle(latlang(1,1), 1))");
+		testPermutations("Select a from b where st_intersects(%s, circ");
+		testPermutations("Select a from b where st_intersects(%s");
 	}
 
 	@Test
