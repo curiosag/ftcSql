@@ -6,13 +6,16 @@ import com.google.common.base.Optional;
 
 import static org.junit.Assert.*;
 
-import manipulations.CursorContextColumnName;
+import manipulations.CursorContext;
 import manipulations.CursorContextListener;
-import manipulations.CursorContextTableName;
+import manipulations.CursorContextType;
 import manipulations.QueryManipulator;
+import manipulations.QueryManipulator.QueryPatcher;
 
 public class TestCursorContext {
 
+	private final boolean debug = false;
+	
 	private int shift(int i) {
 		return i + 0;
 	}
@@ -30,37 +33,33 @@ public class TestCursorContext {
 
 	@Test
 	public void testCursorOutsideColumnContext() {
-		Optional<CursorContextColumnName> c = test.Util.getCursorContextColumnName("Select a from  s", shift(11));
+		Optional<CursorContext> c = test.Util.getCursorContext("Select a from  s", shift(11));
 		assertFalse(c.isPresent());
 	}
 
 	@Test
 	public void testResultColumnEmpty() {
-		Optional<CursorContextColumnName> c;
+		Optional<CursorContext> c;
 
-		c = test.Util.getCursorContextColumnName("Select ", shift(4));
+		c = test.Util.getCursorContext("Select ", shift(4));
 		assertFalse(c.isPresent());
 
-		// context starts at index 5??
-		c = test.Util.getCursorContextColumnName("Select ", shift(5)); 
-		assertTrue(c.isPresent());
-		
-		c = test.Util.getCursorContextColumnName("Select ", shift(6)); 
+		c = test.Util.getCursorContext("Select ", shift(7)); 
 		assertTrue(c.isPresent());
 	}
 
 	@Test
 	public void testColumnJoker() {
-		Optional<CursorContextColumnName> c;
+		Optional<CursorContext> c;
 
-		c = test.Util.getCursorContextColumnName("Select *", shift(7));
+		c = test.Util.getCursorContext("Select *", shift(7));
 		assertTrue(c.isPresent());
-		assertEquals("*", c.get().columnName.get());
+		assertEquals("*", c.get().name.get());
 
-		c = test.Util.getCursorContextColumnName("Select a.*  from o;", shift(7));
+		c = test.Util.getCursorContext("Select a.*  from o;", shift(7));
 		assertTrue(c.isPresent());
-		assertEquals("*", c.get().columnName.get());
-		assertEquals("a", c.get().tableName.get());
+		assertEquals("*", c.get().name.get());
+		assertEquals("a", getTableName(c).get());
 	}
 
 	@Test
@@ -71,16 +70,16 @@ public class TestCursorContext {
 
 	@Test
 	public void testTableAliasResolution() {
-		Optional<CursorContextColumnName> c;
+		Optional<CursorContext> c;
 
 		String query = "Select a.x from u left outer join b as a on u.id = a.id";
-		c = test.Util.getCursorContextColumnName(query, shift(query.indexOf("a")));
+		c = test.Util.getCursorContext(query, shift(query.indexOf("a")));
 
 		assertTrue(c.isPresent());
-		assertTrue(c.get().columnName.isPresent());
-		assertTrue(c.get().tableName.isPresent());
-		assertEquals("x", c.get().columnName.get());
-		assertEquals("b", c.get().tableName.get());
+		assertTrue(c.get().name.isPresent());
+		assertTrue(getTableName(c).isPresent());
+		assertEquals("x", c.get().name.get());
+		assertEquals("b", getTableName(c).get());
 
 	}
 
@@ -113,31 +112,32 @@ public class TestCursorContext {
 
 	// @Test
 	public void testCursorContextTableName() {
-		Optional<CursorContextTableName> c = test.Util.getCursorContextTableName("Select x from  s", shift(11));
+		Optional<CursorContext> c = test.Util.getCursorContext("Select x from  s", shift(11));
 		assertFalse(c.isPresent());
+		assertEquals(CursorContextType.table, c.get().contextType);
 
 		String query = "Select  from ";
-		c = test.Util.getCursorContextTableName(query, shift(13));
+		c = test.Util.getCursorContext(query, shift(13));
 		assertTrue(c.isPresent());
-		assertFalse(c.get().tableName.isPresent());
+		assertFalse(c.get().name.isPresent());
 
 		query = "Select  from x";
-		c = test.Util.getCursorContextTableName(query, shift(query.indexOf("x")));
+		c = test.Util.getCursorContext(query, shift(query.indexOf("x")));
 		assertTrue(c.isPresent());
-		assertTrue(c.get().tableName.isPresent());
-		assertEquals("x", c.get().tableName.get());
+		assertTrue(c.get().name.isPresent());
+		assertEquals("x", c.get().name.get());
 
 		query = "Select c from x as y";
-		c = test.Util.getCursorContextTableName(query, shift(query.indexOf("x")));
+		c = test.Util.getCursorContext(query, shift(query.indexOf("x")));
 		assertTrue(c.isPresent());
-		assertTrue(c.get().tableName.isPresent());
-		assertEquals("x", c.get().tableName.get());
+		assertTrue(c.get().name.isPresent());
+		assertEquals("x", c.get().name.get());
 
 		query = "Select a.x from A left outer join X as E on ";
-		c = test.Util.getCursorContextTableName(query, shift(query.indexOf("X")));
+		c = test.Util.getCursorContext(query, shift(query.indexOf("X")));
 		assertTrue(c.isPresent());
-		assertTrue(c.get().tableName.isPresent());
-		assertEquals("X", c.get().tableName.get());
+		assertTrue(c.get().name.isPresent());
+		assertEquals("X", c.get().name.get());
 	}
 
 	/**
@@ -163,34 +163,66 @@ public class TestCursorContext {
 		testPermutatation(queryTemplate, "", "");
 		testPermutatation(queryTemplate, "", "", emptyContext);
 
+		testPatching(queryTemplate);
+		
 	}
 
 	private void testPermutatation(String queryTemplate, String tableE, String columnE, boolean... emptyContext) {
+
 		int pos = queryTemplate.indexOf("%s");
-		
+				
 		String separator = ".";
-		if (emptyContext.length > 0 && emptyContext[0])
-			separator = "";
 		
 		String query = queryTemplate.replace("%s", tableE + separator + columnE);
-		Optional<CursorContextColumnName> c = test.Util.getCursorContextColumnName(query, pos);
-		checkPermutation(c, tableE, columnE, query, emptyContext);
+		
+		QueryPatcher c = test.Util.getPatcher(query, pos);
+				
+		checkPermutation(c.context, tableE, columnE, query, emptyContext(emptyContext));
+		
 	}
 
-	private void checkPermutation(Optional<CursorContextColumnName> c, String tableE, String columnE, String query,
-			boolean... emptyContext) {
+	public void testPatching(String queryTemplate) {
+		testPatching(queryTemplate, "v");
+		testPatching(queryTemplate, ""); 
+	}
+
+	
+	private void testPatching(String queryTemplate, String value) {
+		System.out.println("template: " + queryTemplate);
+		
+		int pos = queryTemplate.indexOf("%s");
+	
+		String query = queryTemplate.replace("%s", value);
+		QueryPatcher c = test.Util.getPatcher(query, pos);
+		String patched = c.patch(Optional.of("XXX"));
+		
+		System.out.println("patched: " + patched);
+	}
+
+
+	private void checkPermutation(Optional<CursorContext> c, String tableE, String columnE, String query,
+			boolean emptyContext) {
 		debugPermutation(c, tableE, columnE, query, emptyContext);
 
 		assertTrue(c.isPresent());
-		checkString(c.get().tableName, tableE);
-		checkString(c.get().columnName, columnE);
+		assertEquals(CursorContextType.column, c.get().contextType);
+		checkString(c.get().name, columnE);
+		checkString(getTableName(c), tableE);
 	}
 
-	private void debugPermutation(Optional<CursorContextColumnName> c, String tableE, String columnE, String query,
-			boolean... emptyContext) {
+	private Optional<String> getTableName(Optional<CursorContext> c) {
+		return c.get().otherName;
+	}
+
+	private void debugPermutation(Optional<CursorContext> c, String tableE, String columnE, String query,
+			boolean emptyContext) {
+		
+		if (! debug)
+			return;
+		
 		String fmtString;
 		
-		if (emptyContext.length > 0 && emptyContext[0])
+		if (emptyContext)
 			System.out.println("Checking for empty context, query '" + query + "'");
 		else {
 			fmtString = "Checking for table='%s', column='%s' in query '%s'";
@@ -200,11 +232,15 @@ public class TestCursorContext {
 		String col = "";
 		String tab = "";
 		if (c.isPresent()) {
-			col = c.get().columnName.or("absent");
-			tab = c.get().tableName.or("absent");
+			col = c.get().name.or("absent");
+			tab = getTableName(c).or("absent");
 		}
 		fmtString = "recognized: present='%s', table='%s', column='%s'";
 		System.out.println(String.format(fmtString, present, tab, col));
+	}
+
+	private boolean emptyContext(boolean... emptyContext) {
+		return emptyContext.length > 0 && emptyContext[0];
 	}
 
 	private void checkString(Optional<String> s, String valueExpected) {
@@ -215,4 +251,5 @@ public class TestCursorContext {
 			assertEquals(valueExpected, s.get());
 		}
 	}
+	
 }

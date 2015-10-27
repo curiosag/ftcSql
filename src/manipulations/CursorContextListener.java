@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.misc.IntervalSet;
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
@@ -14,48 +15,86 @@ import cg.common.core.Op;
 import gc.common.structures.OrderedIntTuple;
 import parser.FusionTablesSqlBaseListener;
 import parser.FusionTablesSqlParser;
+import util.StringUtil;
 
-public class CursorContextListener extends FusionTablesSqlBaseListener {
+public class CursorContextListener extends FusionTablesSqlBaseListener implements OnError {
 	/**
-	 *  debug switch
+	 * debug switch
 	 */
 	private final static boolean debug = false;
 
 	private final int cursorIndex;
 
+	public String[] expectedSymbols = new String[0];
+	public Token offendingSymbol = null;
+	
 	private Optional<NameRecognition> currentRecognition = Optional.absent();
 
 	public Optional<NameRecognition> atCursor = Optional.absent();
 	public List<NameRecognitionTable> tableList = new ArrayList<NameRecognitionTable>();
 
-	public CursorContextListener(int cursorIndex) {
+	private final FusionTablesSqlParser parser;
+
+	public CursorContextListener(int cursorIndex, FusionTablesSqlParser parser) {
 		this.cursorIndex = cursorIndex;
+		this.parser = parser;
 	}
 
+	@Override
+	public void notify(Token offendingToken, Token missingToken, IntervalSet tokensExpected) {
+			if (offendingToken != null)
+			  offendingSymbol = offendingToken;
+			if (tokensExpected.size() > 0)
+			  expectedSymbols = getTokenNames(tokensExpected);
+	}
+
+	private String[] getTokenNames(IntervalSet s) {
+		return criminalExtraction(s);
+	}
+
+	@SuppressWarnings("static-access")
+	private String[] criminalExtraction(IntervalSet s) {
+		String cont = s.toString(parser.VOCABULARY);
+		if (debug)
+			System.out.println(cont);
+		return StringUtil.peel(cont).split(",");
+	}
+
+	
 	/**
-	 * there are repeated calls for startRecognition, for the cases:
+	 * there are repeated calls for startRecognition / stopRecognition in
+	 * successive nested rules r0->r1-r2, say. It covers the cases
+	 * 
+	 * - from a correct input where all rules work as expected until r2 picking
+	 * its content from a terminal nodes - to errors in the input causing any of
+	 * r2, r1 to fail, picking some to all of its content from error nodes. -
+	 * the empty case, where no information from the desired context could be
+	 * picked, except that it was the context - if r0 fails, nothing can be said
+	 * at all
+	 * 
+	 * the cases:
 	 * 
 	 * Result_columnContext ... empty and error cases where no column names
 	 * follow
 	 * 
 	 * Ordering_termContext ... same for ordering term
 	 * 
-	 * ExprContext ... and for expressions, though this remains ambiguous this
-	 * way e.g. how do you want to tell an incomplete numeric literal("1.") from
-	 * a pathological incomplete Qualified_column_nameContext where the table
-	 * name is "1"?
+	 * ExprContext ... and for expressions, though this remains ambiguous e.g.
+	 * how do you want to tell on a merely syntactic level an incomplete numeric
+	 * literal("1.") from a pathologically incomplete
+	 * Qualified_column_nameContext where the table name is "1"?
 	 * 
-	 * Intersects_qualified_column_nameContext ... for the "ST_INTERSECTS"
-	 * expression
+	 * Qualified_column_in_expressionnameContext ... introduced for the
+	 * st_intersects branch in expressions and then used everywhere, to
+	 * eliminate at least one differentiation
 	 * 
 	 * Result_columnContext -> Aggregate_expContext ->
-	 * Qualified_column_nameContext ... comes with extra tokens "AVG(" or "SUM("
-	 * that need to be skipped - or treated in the state machine
-	 * (NameRecognitionState) which would be more complicated
+	 * Qualified_column_nameContext ... aggregate comes with extra tokens "AVG("
+	 * or "SUM(" that need to be skipped - or treated in class
+	 * "NameRecognitionState" which would be more complicated
 	 * 
-	 * Qualified_column_nameContext ... stand alone version
+	 * Qualified_column_nameContext ... stand alone version of the previous case
 	 * 
-	 * expressions are a special case
 	 * 
 	 */
 
@@ -130,9 +169,8 @@ public class CursorContextListener extends FusionTablesSqlBaseListener {
 	@Override
 	public void visitErrorNode(ErrorNode node) {
 		if (!isGenericError(node.getText()))
-			recognize(node.getSymbol(), getStop(node)); // node.getSymbol.getText()
-														// returns the same as
-														// node.getText()
+			recognize(node.getSymbol(), getStop(node));
+
 		debugErrorNode(node);
 	}
 
@@ -155,13 +193,10 @@ public class CursorContextListener extends FusionTablesSqlBaseListener {
 
 	}
 
-	private boolean triggeredByResultColumnContext() {
-		return currentRecognition.isPresent();
-	}
-
 	private void stopRecognition(ParserRuleContext ctx) {
-
-		currentRecognition = Optional.absent();
+		if (currentRecognition.isPresent()) {
+			currentRecognition = Optional.absent();
+		}
 	}
 
 	private int getStop(ParserRuleContext ctx) {
@@ -185,7 +220,7 @@ public class CursorContextListener extends FusionTablesSqlBaseListener {
 	}
 
 	private void recognize(Token token, int stopIndex) {
-		if (triggeredByResultColumnContext()) {
+		if (currentRecognition.isPresent()) {
 			currentRecognition.get().digest(token);
 			debugRecognize(token);
 		}
@@ -285,5 +320,6 @@ public class CursorContextListener extends FusionTablesSqlBaseListener {
 		System.out.println(String.format("'%s' cursor after pos: %d", query, cursorPos));
 		System.out.println(markPos(cursorPos));
 	}
+
 
 }

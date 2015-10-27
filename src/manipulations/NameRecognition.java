@@ -16,7 +16,7 @@ public class NameRecognition {
 
 	protected Map<NameRecognitionState, String> names = new HashMap<NameRecognitionState, String>();
 	protected Map<NameRecognitionState, OrderedIntTuple> boundaries = new HashMap<NameRecognitionState, OrderedIntTuple>();
-
+	
 	/**
 	 * reads token sequences <name1> [<separator> <name2>] where separator is
 	 * either "." or "AS" like for "field_name", "table_name.field_name",
@@ -60,12 +60,5 @@ public class NameRecognition {
 	public Optional<OrderedIntTuple> getBoundaries2() {
 		return Optional.fromNullable(boundaries.get(NameRecognitionState.NAME2));
 	}
-
-	private OrderedIntTuple getNonNullBoundary(NameRecognitionState state) {
-		OrderedIntTuple result = boundaries.get(state);
-		Check.notNull(boundaries);
-		return result;
-	}
-
 	
 }

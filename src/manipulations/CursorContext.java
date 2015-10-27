@@ -1,10 +1,46 @@
 package manipulations;
 
+import java.util.List;
+
 import com.google.common.base.Optional;
 
 import cg.common.check.Check;
+import gc.common.structures.OrderedIntTuple;
 
 public class CursorContext {
+
+	public final CursorContextType contextType;
+
+	public final Optional<String> name;
+	public final Optional<OrderedIntTuple> boundaries;
+	public final Optional<String> otherName;
+	public final Optional<OrderedIntTuple> otherBoundaries;
+	public final List<NameRecognitionTable> tableList;
+
+	public CursorContext(CursorContextListener c) {
+		Check.isTrue(c.atCursor.isPresent());
+
+		tableList = c.tableList;
+		if (c.atCursor.get() instanceof NameRecognitionTable) {
+			contextType = CursorContextType.table;
+			NameRecognitionTable atCursor = (NameRecognitionTable) c.atCursor.get();
+
+			name = resolveTableName(atCursor.TableName(), c.tableList);
+			boundaries = atCursor.BoundariesTableName();
+			otherName = Optional.absent();
+			otherBoundaries = Optional.absent();
+
+		} else if (c.atCursor.get() instanceof NameRecognitionColumn) {
+			contextType = CursorContextType.column;
+			NameRecognitionColumn atCursor = (NameRecognitionColumn) c.atCursor.get();
+			name = atCursor.ColumnName();
+			boundaries = atCursor.BoundariesColumnName();
+			otherName = resolveTableName(atCursor.TableName(), c.tableList);
+			otherBoundaries = atCursor.BoundariesTableName();
+
+		} else
+			throw new RuntimeException("invalid case: " + c.atCursor.get().getClass().getName());
+	}
 
 	/**
 	 * 
@@ -33,26 +69,27 @@ public class CursorContext {
 	 *         "SELECT a  from A;" -> TableName = "A", TableAlias = absent
 	 *         "SELECT   from A as X;" -> TableName = "A", TableAlias = "X"
 	 */
-	
-	@SuppressWarnings("unused")
-	public static Optional<CursorContext> instance(CursorContextListener contextListener) {
-		Check.notNull(contextListener);
+
+	public static Optional<CursorContext> instance(CursorContextListener context) {
+		Check.notNull(context);
 		
-		if (! contextListener.atCursor.isPresent())
+		if (context.atCursor.isPresent())
+			return Optional.of(new CursorContext(context));
+		else
 			return Optional.absent();
-		
-		String recognition = contextListener.atCursor.get().getClass().getName();
-		CursorContext result = null;
-		
-		if (NameRecognitionTable.class.getName().equals(recognition)) 
-			result = new CursorContextTableName(contextListener); 
-		else if (NameRecognitionColumn.class.getName().equals(recognition))
-			result = new CursorContextColumnName(contextListener);
-	
-		if (result == null)
-			throw new RuntimeException("invalid case");
-		
-		return Optional.of(result);		
+	}
+
+	private Optional<String> resolveTableName(Optional<String> tableNameRecognized,
+			List<NameRecognitionTable> tableList) {
+
+		if (!tableNameRecognized.isPresent())
+			return Optional.absent();
+
+		for (NameRecognitionTable r : tableList)
+			if (r.TableAlias().isPresent() && tableNameRecognized.equals(r.TableAlias()))
+				return r.TableName();
+
+		return tableNameRecognized;
 	}
 
 }

@@ -4,6 +4,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
@@ -23,7 +24,31 @@ import parser.FusionTablesSqlParser;
 import util.StringUtil;
 
 public class QueryManipulator {
-	
+
+	public class QueryPatcher {
+		public final Optional<CursorContext> context;
+		public final int cursorPosition;
+		private final String query;
+
+		public QueryPatcher(Optional<CursorContext> context, int cursorPosition, String query) {
+			this.context = context;
+			this.cursorPosition = cursorPosition;
+			this.query = query;
+		}
+
+		public String patch(Optional<String> value) {
+			String result = query;
+			if (value.isPresent() && context.isPresent())
+				if (context.get().boundaries.isPresent())
+					result = StringUtil.replace(query, context.get().boundaries.get(), value.get());
+				else 
+					result = StringUtil.insert(query, cursorPosition, value.get());
+			
+			return result;
+		}
+
+	}
+
 	private class DiggedAliases extends ParseResult {
 		Map<String, String> aliases;
 
@@ -33,7 +58,7 @@ public class QueryManipulator {
 			this.aliases = aliases;
 		}
 	}
-	
+
 	private final Connector connector;
 	private final TableNameToIdMapper tableNameToIdMapper;
 	private final ParseTreeWalker walker = new ParseTreeWalker();
@@ -48,7 +73,7 @@ public class QueryManipulator {
 		this.tableNameToIdMapper = new TableNameToIdMapper(connector.getTableNameToIdMap());
 		connector.getTableNameToIdMap();
 		this.query = query;
-	
+
 		statementType = getStatementType(getParser());
 	}
 
@@ -76,7 +101,7 @@ public class QueryManipulator {
 				tableAliasToName.aliases);
 
 		walker.walk(substi, stuff.parser.fusionTablesSql());
-		
+
 		return new RefactoredSql(query, substi.tuted(),
 				StringUtil.concat(tableAliasToName.problemsEncountered.orNull(), errorListener.getErrors()));
 	}
@@ -163,25 +188,41 @@ public class QueryManipulator {
 		StatementSplitter splitter = new StatementSplitter(stuff.tokenStream);
 
 		walker.walk(splitter, stuff.parser.fusionTablesSql());
-		return new Splits (splitter.splits, errorListener.getErrors());
+		return new Splits(splitter.splits, errorListener.getErrors());
 	}
 
-	private void prepareForBuggyQuery(FusionTablesSqlParser parser) {
-		parser.removeErrorListeners();
-	}
-	
 	public CursorContextListener getCursorContextListener(int cursorPosition) {
 		Stuff stuff = Util.getParser(query);
-		prepareForBuggyQuery(stuff.parser);
 
-		CursorContextListener cursorContextListener = new CursorContextListener(cursorPosition);
+		CursorContextListener cursorContextListener = new CursorContextListener(cursorPosition, stuff.parser);
+		stuff.parser.removeErrorListeners();
+		stuff.parser.setErrorHandler(new RecognitionErrorStrategy(cursorContextListener));
+
 		walker.walk(cursorContextListener, stuff.parser.fusionTablesSql());
 		return cursorContextListener;
 	}
-	
-	public Optional<CursorContext> getCursorContext(int cursorPosition)
+
+	private boolean symBoundary(char what)
 	{
-		return CursorContext.instance(getCursorContextListener(cursorPosition));
+		char[] boundarySyms = new char[] {' ', '('};
+		for (char c : boundarySyms) 
+			if (what == c)
+				return true;
+		return false;
+	}
+	
+	private int placeInValidTokenRange(String query, int cursorPos) {
+		if (! symBoundary(query.charAt(cursorPos - 1)))
+			cursorPos --;
+		return cursorPos;
+	}
+	
+	public Optional<CursorContext> getCursorContext(int cursorPosition) {
+		return CursorContext.instance(getCursorContextListener(placeInValidTokenRange(query, cursorPosition)));
+	}
+
+	public QueryPatcher getPatcher(int cursorPosition){
+		return new QueryPatcher(getCursorContext(cursorPosition), cursorPosition, query); 
 	}
 	
 }

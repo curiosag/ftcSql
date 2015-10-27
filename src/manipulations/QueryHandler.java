@@ -11,6 +11,7 @@ import cg.common.core.Logging;
 import interfeces.ColumnInfo;
 import interfeces.Connector;
 import interfeces.TableInfo;
+import manipulations.QueryManipulator.QueryPatcher;
 import manipulations.results.RefactoredSql;
 import manipulations.results.ResolvedTableNames;
 
@@ -156,16 +157,10 @@ public class QueryHandler {
 		}
 
 	}
-
-	private int placeInValidTokenRange(String query, int cursorPos) {
-		if (cursorPos == query.length() - 1 && cursorPos > 0)
-			cursorPos --;
-		return cursorPos;
-	}
 	
-	public Optional<CursorContext> getCursorContext(String query, int cursorPos)
+	public QueryPatcher getPatcher(String query, int cursorPos)
 	{
-		return createManipulator(query).getCursorContext(placeInValidTokenRange(query, cursorPos));
+		return createManipulator(query).getPatcher(cursorPos);
 	}
 	
 }
