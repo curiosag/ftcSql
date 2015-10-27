@@ -194,7 +194,7 @@ public class TestCursorContext {
 	
 		String query = queryTemplate.replace("%s", value);
 		QueryPatcher c = test.Util.getPatcher(query, pos);
-		String patched = c.patch(Optional.of("XXX"));
+		String patched = c.patch(Optional.of("XXX"), Optional.of("SomeTable"));
 		
 		System.out.println("patched: " + patched);
 	}

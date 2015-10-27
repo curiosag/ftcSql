@@ -21,13 +21,13 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 	/**
 	 * debug switch
 	 */
-	private final static boolean debug = false;
+	private final static boolean debug = true;
 
 	private final int cursorIndex;
 
 	public String[] expectedSymbols = new String[0];
 	public Token offendingSymbol = null;
-	
+
 	private Optional<NameRecognition> currentRecognition = Optional.absent();
 
 	public Optional<NameRecognition> atCursor = Optional.absent();
@@ -41,11 +41,23 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 	}
 
 	@Override
-	public void notify(Token offendingToken, Token missingToken, IntervalSet tokensExpected) {
-			if (offendingToken != null)
-			  offendingSymbol = offendingToken;
-			if (tokensExpected.size() > 0)
-			  expectedSymbols = getTokenNames(tokensExpected);
+	public void notifyOnError(Token offendingToken, Token missingToken, IntervalSet tokensExpected) {
+		if (offendingToken != null)
+			offendingSymbol = offendingToken;
+		if (tokensExpected.size() > 0)
+			expectedSymbols = getTokenNames(tokensExpected);
+
+		debugOnError();
+	}
+
+	private void debugOnError() {
+		if (debug) {
+			if (offendingSymbol != null) 
+				System.out.println("Offended by: " + offendingSymbol.getText());
+				
+			System.out.println("expected: " + StringUtil.ToCsv(expectedSymbols, ","));
+			
+		}
 	}
 
 	private String[] getTokenNames(IntervalSet s) {
@@ -57,10 +69,9 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 		String cont = s.toString(parser.VOCABULARY);
 		if (debug)
 			System.out.println(cont);
-		return StringUtil.peel(cont).split(",");
+		return cont.split(",");
 	}
 
-	
 	/**
 	 * there are repeated calls for startRecognition / stopRecognition in
 	 * successive nested rules r0->r1-r2, say. It covers the cases
@@ -320,6 +331,5 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 		System.out.println(String.format("'%s' cursor after pos: %d", query, cursorPos));
 		System.out.println(markPos(cursorPos));
 	}
-
 
 }

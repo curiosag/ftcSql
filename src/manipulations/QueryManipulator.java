@@ -14,6 +14,7 @@ import com.google.common.base.Optional;
 
 import cg.common.check.Check;
 import cg.common.core.Logging;
+import gc.common.structures.OrderedIntTuple;
 import interfeces.Connector;
 import manipulations.Util.Stuff;
 import manipulations.results.ParseResult;
@@ -25,9 +26,14 @@ import util.StringUtil;
 
 public class QueryManipulator {
 
+	private boolean bareSelect(String q) {
+		return q.toLowerCase().replace("select", "").replace(" ", "").length() == 0;
+	}
+
 	public class QueryPatcher {
 		public final Optional<CursorContext> context;
 		public final int cursorPosition;
+		public Optional<Integer> newCursorPosition = Optional.absent();
 		private final String query;
 
 		public QueryPatcher(Optional<CursorContext> context, int cursorPosition, String query) {
@@ -36,14 +42,29 @@ public class QueryManipulator {
 			this.query = query;
 		}
 
-		public String patch(Optional<String> value) {
+		private void setNewCursorPosition (int i)
+		{
+			newCursorPosition = Optional.of(Integer.valueOf(i));
+		}
+		
+		public String patch(Optional<String> value, Optional<String> maybeTableName) {
 			String result = query;
-			if (value.isPresent() && context.isPresent())
-				if (context.get().boundaries.isPresent())
-					result = StringUtil.replace(query, context.get().boundaries.get(), value.get());
-				else 
+			boolean bareSelect = bareSelect(query);
+
+			if (value.isPresent() && context.isPresent()) {
+				Optional<OrderedIntTuple> boundaries = context.get().boundaries;
+				if (boundaries.isPresent()) {
+					result = StringUtil.replace(query, boundaries.get(), value.get());
+					int offsetNewCursor = value.get().length() - 1 - (boundaries.get().hi() - boundaries.get().lo());
+					setNewCursorPosition(cursorPosition + offsetNewCursor);
+				} else {
 					result = StringUtil.insert(query, cursorPosition, value.get());
-			
+					setNewCursorPosition(cursorPosition + value.get().length());
+				}
+				if (bareSelect && maybeTableName.isPresent())
+					result = result + "\nFROM " + maybeTableName.get() + ";";
+
+			}
 			return result;
 		}
 
@@ -202,27 +223,26 @@ public class QueryManipulator {
 		return cursorContextListener;
 	}
 
-	private boolean symBoundary(char what)
-	{
-		char[] boundarySyms = new char[] {' ', '('};
-		for (char c : boundarySyms) 
+	private boolean symBoundary(char what) {
+		char[] boundarySyms = new char[] { ' ', '(' };
+		for (char c : boundarySyms)
 			if (what == c)
 				return true;
 		return false;
 	}
-	
+
 	private int placeInValidTokenRange(String query, int cursorPos) {
-		if (! symBoundary(query.charAt(cursorPos - 1)))
-			cursorPos --;
+		if (cursorPos > 0 && cursorPos <= query.length() && !symBoundary(query.charAt(cursorPos - 1)))
+			cursorPos--;
 		return cursorPos;
 	}
-	
+
 	public Optional<CursorContext> getCursorContext(int cursorPosition) {
 		return CursorContext.instance(getCursorContextListener(placeInValidTokenRange(query, cursorPosition)));
 	}
 
-	public QueryPatcher getPatcher(int cursorPosition){
-		return new QueryPatcher(getCursorContext(cursorPosition), cursorPosition, query); 
+	public QueryPatcher getPatcher(int cursorPosition) {
+		return new QueryPatcher(getCursorContext(cursorPosition), cursorPosition, query);
 	}
-	
+
 }

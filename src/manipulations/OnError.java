@@ -5,6 +5,6 @@ import org.antlr.v4.runtime.misc.IntervalSet;
 
 public interface OnError {
 
-		public void notify(Token offendingToken, Token missingToken, IntervalSet tokensExpected);
+		public void notifyOnError(Token offendingToken, Token missingToken, IntervalSet tokensExpected);
 	
 }

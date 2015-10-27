@@ -17,12 +17,12 @@ public class RecognitionErrorStrategy extends DefaultErrorStrategy {
 
 	@Override
 	public void reportInputMismatch(Parser recognizer, InputMismatchException e) throws RecognitionException {
-		onErrorCallback.notify(e.getOffendingToken(), null, e.getExpectedTokens());
+		onErrorCallback.notifyOnError(e.getOffendingToken(), null, e.getExpectedTokens());
 	}
 
 	@Override
 	public void reportMissingToken(Parser recognizer) {
-		onErrorCallback.notify(null, recognizer.getCurrentToken(), getExpectedTokens(recognizer));
+		onErrorCallback.notifyOnError(null, recognizer.getCurrentToken(), getExpectedTokens(recognizer));
 	}
 
 }

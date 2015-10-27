@@ -3,8 +3,7 @@ package manipulations;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-
-import com.google.common.base.Optional;
+import java.util.Observable;
 
 import cg.common.check.Check;
 import cg.common.core.Logging;
@@ -15,13 +14,15 @@ import manipulations.QueryManipulator.QueryPatcher;
 import manipulations.results.RefactoredSql;
 import manipulations.results.ResolvedTableNames;
 
-public class QueryHandler {
+public class QueryHandler extends Observable {
 
+	private boolean reload = true;
 	public final boolean ADD_DETAILS = true;
 	private final Logging logger;
 	private final Connector connector;
 	private final boolean preview = true;
 	private final boolean execute = !preview;
+	private final List<TableInfo> tableInfo = null;
 
 	public QueryHandler(Logging logger, Connector c) {
 		Check.notNull(logger);
@@ -38,20 +39,31 @@ public class QueryHandler {
 		return new QueryManipulator(connector, logger, query);
 	}
 
+	private void reloadTableList() {
+		internalGetTableList(reload);
+	}
+
+	private synchronized List<TableInfo> internalGetTableList(boolean reload) {
+		if (tableInfo == null || reload)
+			return connector.getTableInfo();
+		else
+			return tableInfo;
+	}
+
 	public List<TableInfo> getTableList(boolean addDetails) {
-		List<TableInfo> info = connector.getTableInfo();
+		List<TableInfo> info = internalGetTableList(!reload);
 		List<TableInfo> result;
 		if (addDetails)
 			result = info;
-		else 
+		else
 			result = flatten(info);
-		return result; 
+		return result;
 	}
 
 	private List<TableInfo> flatten(List<TableInfo> info) {
 		List<ColumnInfo> noColumns = new ArrayList<ColumnInfo>();
 		List<TableInfo> result = new ArrayList<TableInfo>();
-		for (TableInfo t : info) 
+		for (TableInfo t : info)
 			result.add(new TableInfo(t.name, t.id, t.description, noColumns));
 		return result;
 	}
@@ -76,9 +88,12 @@ public class QueryHandler {
 		if (id.problemsEncountered.isPresent())
 			return id.problemsEncountered.get();
 		else if (preview)
-			return String.format("Api call rename to %s, table id %s", id.nameTo, id.idFrom);
-		else
-			return connector.renameTable(id.idFrom.get(), id.nameTo);
+			return String.format("Api call rename to %s, table id %s", id.nameTo, id.idFrom.or(""));
+		else {
+			String result = connector.renameTable(id.idFrom.get(), id.nameTo);
+			onStructureChanged();
+			return result;
+		}
 	}
 
 	private String hdlQuery(String query, QueryManipulator ftr, boolean preview) {
@@ -101,6 +116,7 @@ public class QueryHandler {
 		else
 			try {
 				connector.deleteTable(id.idFrom.get());
+				onStructureChanged();
 				return "dropped '" + id.idFrom.get() + "'";
 			} catch (IOException e) {
 				return e.getMessage();
@@ -139,16 +155,16 @@ public class QueryHandler {
 		QueryManipulator ftr = createManipulator(query);
 
 		switch (ftr.statementType) {
-		
+
 		case ALTER:
 			return hdlAlterTable(ftr, preview);
-			
+
 		case SELECT:
 			return hdlQuery(query, ftr, preview);
-			
+
 		case CREATE_VIEW:
 			return hdlQuery(query, ftr, preview);
-			
+
 		case DROP:
 			return hdlDropTable(ftr, preview);
 
@@ -157,10 +173,18 @@ public class QueryHandler {
 		}
 
 	}
-	
-	public QueryPatcher getPatcher(String query, int cursorPos)
-	{
+
+	public QueryPatcher getPatcher(String query, int cursorPos) {
 		return createManipulator(query).getPatcher(cursorPos);
 	}
-	
+
+	private void onStructureChanged() {
+		new Thread(new Runnable() {
+			public void run() {
+				reloadTableList();
+				notifyObservers();
+			}
+		}).start();
+	}
+
 }
