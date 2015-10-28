@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
+import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
@@ -42,11 +43,17 @@ public class QueryManipulator {
 			this.query = query;
 		}
 
-		private void setNewCursorPosition (int i)
-		{
+		public String[] getContinuations() {
+			if (!context.isPresent())
+				return new String[0];
+			else
+				return QueryManipulator.getContinuations(context.get().contextAtCursor);
+		}
+
+		private void setNewCursorPosition(int i) {
 			newCursorPosition = Optional.of(Integer.valueOf(i));
 		}
-		
+
 		public String patch(Optional<String> value, Optional<String> maybeTableName) {
 			String result = query;
 			boolean bareSelect = bareSelect(query);
@@ -238,11 +245,23 @@ public class QueryManipulator {
 	}
 
 	public Optional<CursorContext> getCursorContext(int cursorPosition) {
-		return CursorContext.instance(getCursorContextListener(placeInValidTokenRange(query, cursorPosition)));
+		Optional<CursorContext> result = CursorContext
+				.instance(getCursorContextListener(placeInValidTokenRange(query, cursorPosition)));
+		return result;
 	}
 
 	public QueryPatcher getPatcher(int cursorPosition) {
 		return new QueryPatcher(getCursorContext(cursorPosition), cursorPosition, query);
 	}
 
+	public static String[] getContinuations(ParserRuleContext contextAtCursor) {
+		if (contextAtCursor instanceof FusionTablesSqlParser.FusionTablesSqlContext)
+			return new String[] { "ALTER TABLE", "DROP TABLE", "INSERT INTO ", "UPDATE TABLE", "SELECT" };
+		else if (contextAtCursor instanceof FusionTablesSqlParser.ExprContext)
+			return new String[] { "=", ">", "<", ">=", "<=", "IN", "LIKE", "MATCHES", "STARTS WITH", "ENDS WITH",
+					"CONTAINS", "CONTAINS IGNORING CASE", "DOES NOT CONTAIN", "NOT EQUAL TO", "IN", "BETWEEN",
+					"ST_INTERSECTS" };
+		else
+			return new String[0];
+	}
 }

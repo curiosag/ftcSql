@@ -1,7 +1,9 @@
 package manipulations;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Stack;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
@@ -15,6 +17,7 @@ import cg.common.core.Op;
 import gc.common.structures.OrderedIntTuple;
 import parser.FusionTablesSqlBaseListener;
 import parser.FusionTablesSqlParser;
+import parser.FusionTablesSqlParser.ExprContext;
 import util.StringUtil;
 
 public class CursorContextListener extends FusionTablesSqlBaseListener implements OnError {
@@ -27,10 +30,14 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 
 	public String[] expectedSymbols = new String[0];
 	public Token offendingSymbol = null;
+	private Token lastTerminalRead = null;
+	private LinkedList<Token> errorTokensRead = new LinkedList<Token>();
 
-	private Optional<NameRecognition> currentRecognition = Optional.absent();
+	private Optional<NameRecognition> currentNameRecognition = Optional.absent();
 
-	public Optional<NameRecognition> atCursor = Optional.absent();
+	public Optional<ParserRuleContext> contextAtCursor = Optional.absent();
+	public Stack<ParserRuleContext> contextStack = new Stack<ParserRuleContext>();
+	public Optional<NameRecognition> nameAtCursor = Optional.absent();
 	public List<NameRecognitionTable> tableList = new ArrayList<NameRecognitionTable>();
 
 	private final FusionTablesSqlParser parser;
@@ -52,11 +59,11 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 
 	private void debugOnError() {
 		if (debug) {
-			if (offendingSymbol != null) 
+			if (offendingSymbol != null)
 				System.out.println("Offended by: " + offendingSymbol.getText());
-				
+
 			System.out.println("expected: " + StringUtil.ToCsv(expectedSymbols, ","));
-			
+
 		}
 	}
 
@@ -111,69 +118,85 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 
 	@Override
 	public void enterTable_name_with_alias(FusionTablesSqlParser.Table_name_with_aliasContext ctx) {
-		startRecognition(new NameRecognitionTable(), ctx);
+		startNameRecognition(new NameRecognitionTable(), ctx);
 	}
 
 	@Override
 	public void exitTable_name_with_alias(FusionTablesSqlParser.Table_name_with_aliasContext ctx) {
-		stopRecognition(ctx);
+		stopNameRecognition(ctx);
 	}
 
 	@Override
 	public void enterResult_column(FusionTablesSqlParser.Result_columnContext ctx) {
-		startRecognition(new NameRecognitionColumn(), ctx);
+		startNameRecognition(new NameRecognitionColumn(), ctx);
 	}
 
 	@Override
 	public void exitResult_column(FusionTablesSqlParser.Result_columnContext ctx) {
-		stopRecognition(ctx);
+		stopNameRecognition(ctx);
 	}
 
 	@Override
 	public void enterOrdering_term(FusionTablesSqlParser.Ordering_termContext ctx) {
-		startRecognition(new NameRecognitionColumn(), ctx);
+		startNameRecognition(new NameRecognitionColumn(), ctx);
 	}
 
 	@Override
 	public void exitOrdering_term(FusionTablesSqlParser.Ordering_termContext ctx) {
-		stopRecognition(ctx);
+		stopNameRecognition(ctx);
 	}
 
 	@Override
 	public void enterExpr(FusionTablesSqlParser.ExprContext ctx) {
-		startRecognition(new NameRecognitionColumn(), ctx);
+		startNameRecognition(new NameRecognitionColumn(), ctx);
 	}
 
 	@Override
 	public void exitExpr(FusionTablesSqlParser.ExprContext ctx) {
-		stopRecognition(ctx);
+		stopNameRecognition(ctx);
+		evaluateExprContextMatchOnExitRule(ctx);
 	}
 
 	@Override
 	public void enterQualified_column_name(FusionTablesSqlParser.Qualified_column_nameContext ctx) {
-		startRecognition(new NameRecognitionColumn(), ctx);
+		startNameRecognition(new NameRecognitionColumn(), ctx);
 	}
 
 	@Override
 	public void exitQualified_column_name(FusionTablesSqlParser.Qualified_column_nameContext ctx) {
-		stopRecognition(ctx);
+		stopNameRecognition(ctx);
 	}
 
 	@Override
 	public void enterQualified_column_name_in_expression(
 			FusionTablesSqlParser.Qualified_column_name_in_expressionContext ctx) {
-		startRecognition(new NameRecognitionColumn(), ctx);
+		startNameRecognition(new NameRecognitionColumn(), ctx);
 	}
 
 	@Override
 	public void exitQualified_column_name_in_expression(
 			FusionTablesSqlParser.Qualified_column_name_in_expressionContext ctx) {
-		stopRecognition(ctx);
+		stopNameRecognition(ctx);
+	}
+
+	@Override
+	public void enterTable_name_in_ddl(FusionTablesSqlParser.Table_name_in_ddlContext ctx) {
+		startNameRecognition(new NameRecognitionTable(), ctx);
+	}
+
+	@Override
+	public void exitTable_name_in_ddl(FusionTablesSqlParser.Table_name_in_ddlContext ctx) {
+		stopNameRecognition(ctx);
 	}
 
 	@Override
 	public void visitTerminal(TerminalNode node) {
 		recognize(node.getSymbol(), getStop(node));
+
+		lastTerminalRead = node.getSymbol();
+		if (errorTokensRead.size() > 0)
+			errorTokensRead.clear();
+
 		debugTerminal(node);
 	}
 
@@ -182,20 +205,65 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 		if (!isGenericError(node.getText()))
 			recognize(node.getSymbol(), getStop(node));
 
+		errorTokensRead.add(node.getSymbol());
+
 		debugErrorNode(node);
+	}
+
+	@Override
+	public void enterEveryRule(ParserRuleContext ctx) {
+		onEnterRule(ctx);
+	}
+
+	@Override
+	public void exitEveryRule(ParserRuleContext ctx) {
+		onExitRule(ctx);
+	}
+
+	private OrderedIntTuple getLastErrorBoundaries(int stretchBy) {
+		return OrderedIntTuple.instance(errorTokensRead.getLast().getStartIndex(),
+				errorTokensRead.getLast().getStopIndex() + stretchBy);
+	}
+
+	private void evaluateExprContextMatchOnExitRule(ParserRuleContext ctx) {
+		// smthg like "WHERE a " will give a terminal "WHERE" plus one error
+		// node "a" the cursor is 1 after a in this case, token
+		// boundary ends with a, therefore stretchBy
+		int stretchBy = 2;
+		if (lastTerminalRead != null
+				&& StringUtil.equalsAny(lastTerminalRead.getText().toUpperCase(), "WHERE", "AND", "OR")
+				&& errorTokensRead.size() == 1 && cursorWithinBoundaries(getLastErrorBoundaries(stretchBy))) {
+			contextAtCursor = Optional.of(ctx);
+			if (debug)
+				System.out.println("-> matched in hindsight");
+		}
+
+	}
+
+	private void onEnterRule(ParserRuleContext ctx) {
+		debugContext(ctx, "enter");
+
+		pushContext(ctx);
+		if (cursorWithinBoundaries(ctx))
+			contextAtCursor = Optional.of(ctx);
+	}
+
+	private void onExitRule(ParserRuleContext ctx) {
+		debugContext(ctx, "exit");
+		popContext();
 	}
 
 	private boolean isGenericError(String errorString) {
 		return errorString.startsWith("<") && errorString.endsWith(">");
 	}
 
-	private void startRecognition(NameRecognition current, ParserRuleContext ctx) {
-		currentRecognition = Optional.of(current);
+	private void startNameRecognition(NameRecognition current, ParserRuleContext ctx) {
+		currentNameRecognition = Optional.of(current);
 
-		OrderedIntTuple range = OrderedIntTuple.instance(getStart(ctx), getStop(ctx));
+		OrderedIntTuple range = getRuleRange(ctx);
 
 		if (cursorWithinBoundaries(range))
-			atCursor = currentRecognition;
+			nameAtCursor = currentNameRecognition;
 
 		if (current.getClass() == NameRecognitionTable.class)
 			tableList.add((NameRecognitionTable) current);
@@ -204,18 +272,28 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 
 	}
 
-	private void stopRecognition(ParserRuleContext ctx) {
-		if (currentRecognition.isPresent()) {
-			currentRecognition = Optional.absent();
+	private OrderedIntTuple getRuleRange(ParserRuleContext ctx) {
+		return OrderedIntTuple.instance(getStart(ctx), getStop(ctx));
+	}
+
+	private void stopNameRecognition(ParserRuleContext ctx) {
+		if (currentNameRecognition.isPresent()) {
+			currentNameRecognition = Optional.absent();
 		}
 	}
 
 	private int getStop(ParserRuleContext ctx) {
-		return ctx.stop.getStopIndex();
+		if (ctx.stop == null)
+			return -1;
+		else
+			return ctx.stop.getStopIndex();
 	}
 
 	private int getStart(ParserRuleContext ctx) {
-		return ctx.start.getStartIndex();
+		if (ctx.start == null)
+			return -1;
+		else
+			return ctx.start.getStartIndex();
 	}
 
 	private void debugStartRecognition(OrderedIntTuple range) {
@@ -226,13 +304,17 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 		}
 	}
 
+	private boolean cursorWithinBoundaries(ParserRuleContext c) {
+		return cursorWithinBoundaries(getRuleRange(c));
+	}
+
 	private boolean cursorWithinBoundaries(OrderedIntTuple o) {
 		return Op.between(o.lo(), cursorIndex, o.hi());
 	}
 
 	private void recognize(Token token, int stopIndex) {
-		if (currentRecognition.isPresent()) {
-			currentRecognition.get().digest(token);
+		if (currentNameRecognition.isPresent()) {
+			currentNameRecognition.get().digest(token);
 			debugRecognize(token);
 		}
 	}
@@ -272,27 +354,17 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 		System.out.println(String.format("%s %s from %d to %d %s", withinBoundaries, what, o.lo(), o.hi(), swapped));
 	}
 
-	private void sayContext(ParserRuleContext ctx, String inOrOut) {
+	private void debugContext(ParserRuleContext ctx, String inOrOut) {
 		if (debug)
 			say(inOrOut + " rule: " + ctx.getClass().getSimpleName(), getBoundaries(ctx));
 	}
 
 	private OrderedIntTuple getBoundaries(ParserRuleContext ctx) {
-		return OrderedIntTuple.instance(getStart(ctx), getStop(ctx));
+		return getRuleRange(ctx);
 	}
 
 	private OrderedIntTuple getBoundaries(TerminalNode n) {
 		return OrderedIntTuple.instance(n.getSymbol().getStartIndex(), n.getSymbol().getStopIndex());
-	}
-
-	@Override
-	public void enterEveryRule(ParserRuleContext ctx) {
-		sayContext(ctx, "enter");
-	}
-
-	@Override
-	public void exitEveryRule(ParserRuleContext ctx) {
-		sayContext(ctx, "exit");
 	}
 
 	private String markPos(int pos) {
@@ -320,8 +392,8 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 	}
 
 	private void say() {
-		if (atCursor.isPresent())
-			say(atCursor.get());
+		if (nameAtCursor.isPresent())
+			say(nameAtCursor.get());
 		for (NameRecognitionTable t : tableList)
 			say(t);
 	}
@@ -332,4 +404,12 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 		System.out.println(markPos(cursorPos));
 	}
 
+	private void pushContext(ParserRuleContext c) {
+		contextStack.push(c);
+	}
+
+	private void popContext() {
+		if (!contextAtCursor.isPresent())
+			contextStack.pop();
+	}
 }

@@ -34,7 +34,9 @@ public class TestCursorContext {
 	@Test
 	public void testCursorOutsideColumnContext() {
 		Optional<CursorContext> c = test.Util.getCursorContext("Select a from  s", shift(11));
-		assertFalse(c.isPresent());
+		assertTrue(c.isPresent());
+		assertTrue(c.get().contextType == CursorContextType.anyRule);
+		assertFalse(c.get().name.isPresent());
 	}
 
 	@Test
@@ -42,10 +44,12 @@ public class TestCursorContext {
 		Optional<CursorContext> c;
 
 		c = test.Util.getCursorContext("Select ", shift(4));
-		assertFalse(c.isPresent());
-
+		assertTrue(c.isPresent());
+		assertTrue(c.get().contextType == CursorContextType.anyRule);
+		
 		c = test.Util.getCursorContext("Select ", shift(7)); 
 		assertTrue(c.isPresent());
+		assertTrue(c.get().contextType == CursorContextType.columnName);
 	}
 
 	@Test
@@ -114,7 +118,7 @@ public class TestCursorContext {
 	public void testCursorContextTableName() {
 		Optional<CursorContext> c = test.Util.getCursorContext("Select x from  s", shift(11));
 		assertFalse(c.isPresent());
-		assertEquals(CursorContextType.table, c.get().contextType);
+		assertEquals(CursorContextType.tableName, c.get().contextType);
 
 		String query = "Select  from ";
 		c = test.Util.getCursorContext(query, shift(13));
@@ -205,7 +209,7 @@ public class TestCursorContext {
 		debugPermutation(c, tableE, columnE, query, emptyContext);
 
 		assertTrue(c.isPresent());
-		assertEquals(CursorContextType.column, c.get().contextType);
+		assertEquals(CursorContextType.columnName, c.get().contextType);
 		checkString(c.get().name, columnE);
 		checkString(getTableName(c), tableE);
 	}

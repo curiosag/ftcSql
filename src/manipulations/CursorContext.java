@@ -2,6 +2,8 @@ package manipulations;
 
 import java.util.List;
 
+import org.antlr.v4.runtime.ParserRuleContext;
+
 import com.google.common.base.Optional;
 
 import cg.common.check.Check;
@@ -11,6 +13,7 @@ public class CursorContext {
 
 	public final CursorContextType contextType;
 
+	public final ParserRuleContext contextAtCursor;
 	public final Optional<String> name;
 	public final Optional<OrderedIntTuple> boundaries;
 	public final Optional<String> otherName;
@@ -18,28 +21,36 @@ public class CursorContext {
 	public final List<NameRecognitionTable> tableList;
 
 	public CursorContext(CursorContextListener c) {
-		Check.isTrue(c.atCursor.isPresent());
+		Check.isTrue(c.contextAtCursor.isPresent());
 
 		tableList = c.tableList;
-		if (c.atCursor.get() instanceof NameRecognitionTable) {
-			contextType = CursorContextType.table;
-			NameRecognitionTable atCursor = (NameRecognitionTable) c.atCursor.get();
+		this.contextAtCursor = c.contextAtCursor.get();
+
+		if (!c.nameAtCursor.isPresent()) {
+			contextType = CursorContextType.anyRule;
+			name = Optional.absent();
+			boundaries = Optional.absent();
+			otherName = Optional.absent();
+			otherBoundaries = Optional.absent();
+		} else if (c.nameAtCursor.get() instanceof NameRecognitionTable) {
+			contextType = CursorContextType.tableName;
+			NameRecognitionTable atCursor = (NameRecognitionTable) c.nameAtCursor.get();
 
 			name = resolveTableName(atCursor.TableName(), c.tableList);
 			boundaries = atCursor.BoundariesTableName();
 			otherName = Optional.absent();
 			otherBoundaries = Optional.absent();
 
-		} else if (c.atCursor.get() instanceof NameRecognitionColumn) {
-			contextType = CursorContextType.column;
-			NameRecognitionColumn atCursor = (NameRecognitionColumn) c.atCursor.get();
+		} else if (c.nameAtCursor.get() instanceof NameRecognitionColumn) {
+			contextType = CursorContextType.columnName;
+			NameRecognitionColumn atCursor = (NameRecognitionColumn) c.nameAtCursor.get();
 			name = atCursor.ColumnName();
 			boundaries = atCursor.BoundariesColumnName();
 			otherName = resolveTableName(atCursor.TableName(), c.tableList);
 			otherBoundaries = atCursor.BoundariesTableName();
 
 		} else
-			throw new RuntimeException("invalid case: " + c.atCursor.get().getClass().getName());
+			throw new RuntimeException("invalid case: " + c.nameAtCursor.get().getClass().getName());
 	}
 
 	/**
@@ -72,8 +83,8 @@ public class CursorContext {
 
 	public static Optional<CursorContext> instance(CursorContextListener context) {
 		Check.notNull(context);
-		
-		if (context.atCursor.isPresent())
+
+		if (context.contextAtCursor.isPresent())
 			return Optional.of(new CursorContext(context));
 		else
 			return Optional.absent();
