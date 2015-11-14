@@ -10,7 +10,7 @@ import manipulations.CursorContext;
 import manipulations.CursorContextListener;
 import manipulations.CursorContextType;
 import manipulations.QueryManipulator;
-import manipulations.QueryManipulator.QueryPatcher;
+import manipulations.QueryPatching;
 
 public class TestCursorContext {
 
@@ -179,7 +179,7 @@ public class TestCursorContext {
 		
 		String query = queryTemplate.replace("%s", tableE + separator + columnE);
 		
-		QueryPatcher c = test.Util.getPatcher(query, pos);
+		QueryPatching c = test.Util.getPatcher(query, pos);
 				
 		checkPermutation(c.context, tableE, columnE, query, emptyContext(emptyContext));
 		
@@ -197,8 +197,9 @@ public class TestCursorContext {
 		int pos = queryTemplate.indexOf("%s");
 	
 		String query = queryTemplate.replace("%s", value);
-		QueryPatcher c = test.Util.getPatcher(query, pos);
-		String patched = c.patch(Optional.of("XXX"), Optional.of("SomeTable"));
+		QueryPatching c = test.Util.getPatcher(query, pos);
+		Object someField = "XXX";
+		String patched = c.patch(Optional.of(someField), Optional.of("SomeTable"));
 		
 		System.out.println("patched: " + patched);
 	}

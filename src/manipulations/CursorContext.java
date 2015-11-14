@@ -1,6 +1,7 @@
 package manipulations;
 
 import java.util.List;
+import java.util.Stack;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 
@@ -8,23 +9,29 @@ import com.google.common.base.Optional;
 
 import cg.common.check.Check;
 import gc.common.structures.OrderedIntTuple;
+import interfacing.SyntaxElement;
 
 public class CursorContext {
 
 	public final CursorContextType contextType;
 
 	public final ParserRuleContext contextAtCursor;
+	public final Stack<ParserRuleContext> contextStack;
+
 	public final Optional<String> name;
 	public final Optional<OrderedIntTuple> boundaries;
 	public final Optional<String> otherName;
 	public final Optional<OrderedIntTuple> otherBoundaries;
 	public final List<NameRecognitionTable> tableList;
+	public final List<SyntaxElement> syntaxElements;
 
 	public CursorContext(CursorContextListener c) {
 		Check.isTrue(c.contextAtCursor.isPresent());
-
+	
 		tableList = c.tableList;
 		this.contextAtCursor = c.contextAtCursor.get();
+		this.contextStack = c.contextStack;
+		this.syntaxElements = c.syntaxElements;
 
 		if (!c.nameAtCursor.isPresent()) {
 			contextType = CursorContextType.anyRule;

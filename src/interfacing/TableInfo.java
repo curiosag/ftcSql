@@ -1,4 +1,4 @@
-package interfeces;
+package interfacing;
 
 import java.util.List;
 

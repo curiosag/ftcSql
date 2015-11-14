@@ -15,12 +15,10 @@ import com.google.common.base.Optional;
 
 import cg.common.core.Op;
 import gc.common.structures.OrderedIntTuple;
-import parser.FusionTablesSqlBaseListener;
 import parser.FusionTablesSqlParser;
-import parser.FusionTablesSqlParser.ExprContext;
 import util.StringUtil;
 
-public class CursorContextListener extends FusionTablesSqlBaseListener implements OnError {
+public class CursorContextListener extends SyntaxElementListener implements OnError {
 	/**
 	 * debug switch
 	 */
@@ -49,6 +47,7 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 
 	@Override
 	public void notifyOnError(Token offendingToken, Token missingToken, IntervalSet tokensExpected) {
+		super.notifyOnError(offendingToken, missingToken, tokensExpected);
 		if (offendingToken != null)
 			offendingSymbol = offendingToken;
 		if (tokensExpected.size() > 0)
@@ -118,79 +117,94 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 
 	@Override
 	public void enterTable_name_with_alias(FusionTablesSqlParser.Table_name_with_aliasContext ctx) {
+		super.enterTable_name_with_alias(ctx);
 		startNameRecognition(new NameRecognitionTable(), ctx);
 	}
 
 	@Override
 	public void exitTable_name_with_alias(FusionTablesSqlParser.Table_name_with_aliasContext ctx) {
+		super.exitTable_name_with_alias(ctx);
 		stopNameRecognition(ctx);
 	}
 
 	@Override
 	public void enterResult_column(FusionTablesSqlParser.Result_columnContext ctx) {
+		super.enterResult_column(ctx);
 		startNameRecognition(new NameRecognitionColumn(), ctx);
 	}
 
 	@Override
 	public void exitResult_column(FusionTablesSqlParser.Result_columnContext ctx) {
+		super.exitResult_column(ctx);
 		stopNameRecognition(ctx);
 	}
 
 	@Override
 	public void enterOrdering_term(FusionTablesSqlParser.Ordering_termContext ctx) {
+		super.enterOrdering_term(ctx);
 		startNameRecognition(new NameRecognitionColumn(), ctx);
 	}
 
 	@Override
 	public void exitOrdering_term(FusionTablesSqlParser.Ordering_termContext ctx) {
+		super.exitOrdering_term(ctx);
 		stopNameRecognition(ctx);
 	}
 
 	@Override
 	public void enterExpr(FusionTablesSqlParser.ExprContext ctx) {
+		super.enterExpr(ctx);
 		startNameRecognition(new NameRecognitionColumn(), ctx);
 	}
 
 	@Override
 	public void exitExpr(FusionTablesSqlParser.ExprContext ctx) {
+		super.exitExpr(ctx);
 		stopNameRecognition(ctx);
 		evaluateExprContextMatchOnExitRule(ctx);
 	}
 
 	@Override
 	public void enterQualified_column_name(FusionTablesSqlParser.Qualified_column_nameContext ctx) {
+		super.enterQualified_column_name(ctx);
 		startNameRecognition(new NameRecognitionColumn(), ctx);
 	}
 
 	@Override
 	public void exitQualified_column_name(FusionTablesSqlParser.Qualified_column_nameContext ctx) {
+		super.exitQualified_column_name(ctx);
 		stopNameRecognition(ctx);
 	}
 
 	@Override
 	public void enterQualified_column_name_in_expression(
 			FusionTablesSqlParser.Qualified_column_name_in_expressionContext ctx) {
+		super.enterQualified_column_name_in_expression(ctx);
 		startNameRecognition(new NameRecognitionColumn(), ctx);
 	}
 
 	@Override
 	public void exitQualified_column_name_in_expression(
 			FusionTablesSqlParser.Qualified_column_name_in_expressionContext ctx) {
+		super.exitQualified_column_name_in_expression(ctx);
 		stopNameRecognition(ctx);
 	}
 
 	@Override
 	public void enterTable_name_in_ddl(FusionTablesSqlParser.Table_name_in_ddlContext ctx) {
+		super.enterTable_name_in_ddl(ctx);
 		startNameRecognition(new NameRecognitionTable(), ctx);
 	}
 
 	@Override
 	public void exitTable_name_in_ddl(FusionTablesSqlParser.Table_name_in_ddlContext ctx) {
+		super.exitTable_name_in_ddl(ctx);
 		stopNameRecognition(ctx);
 	}
 
 	@Override
 	public void visitTerminal(TerminalNode node) {
+		super.visitTerminal(node);
 		recognize(node.getSymbol(), getStop(node));
 
 		lastTerminalRead = node.getSymbol();
@@ -202,6 +216,7 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 
 	@Override
 	public void visitErrorNode(ErrorNode node) {
+		super.visitErrorNode(node);
 		if (!isGenericError(node.getText()))
 			recognize(node.getSymbol(), getStop(node));
 
@@ -212,11 +227,13 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 
 	@Override
 	public void enterEveryRule(ParserRuleContext ctx) {
+		super.enterEveryRule(ctx);
 		onEnterRule(ctx);
 	}
 
 	@Override
 	public void exitEveryRule(ParserRuleContext ctx) {
+		super.exitEveryRule(ctx);
 		onExitRule(ctx);
 	}
 
@@ -252,11 +269,7 @@ public class CursorContextListener extends FusionTablesSqlBaseListener implement
 		debugContext(ctx, "exit");
 		popContext();
 	}
-
-	private boolean isGenericError(String errorString) {
-		return errorString.startsWith("<") && errorString.endsWith(">");
-	}
-
+	
 	private void startNameRecognition(NameRecognition current, ParserRuleContext ctx) {
 		currentNameRecognition = Optional.of(current);
 

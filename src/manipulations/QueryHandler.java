@@ -7,10 +7,11 @@ import java.util.Observable;
 
 import cg.common.check.Check;
 import cg.common.core.Logging;
-import interfeces.ColumnInfo;
-import interfeces.Connector;
-import interfeces.TableInfo;
-import manipulations.QueryManipulator.QueryPatcher;
+import interfacing.ColumnInfo;
+import interfacing.Connector;
+import interfacing.SyntaxElement;
+import interfacing.TableInfo;
+import manipulations.QueryPatching;
 import manipulations.results.RefactoredSql;
 import manipulations.results.ResolvedTableNames;
 
@@ -174,10 +175,15 @@ public class QueryHandler extends Observable {
 
 	}
 
-	public QueryPatcher getPatcher(String query, int cursorPos) {
+	public QueryPatching getPatcher(String query, int cursorPos) {
 		return createManipulator(query).getPatcher(cursorPos);
 	}
 
+	public List<SyntaxElement> getHighlighting(String query)
+	{
+		return createManipulator(query).getSyntaxElements();
+	}
+	
 	private void onStructureChanged() {
 		new Thread(new Runnable() {
 			public void run() {

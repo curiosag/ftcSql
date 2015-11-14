@@ -6,8 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 import cg.common.check.Check;
-import interfeces.Connector;
-import interfeces.TableInfo;
+import interfacing.Connector;
+import interfacing.TableInfo;
 
 import static org.junit.Assert.*;
 

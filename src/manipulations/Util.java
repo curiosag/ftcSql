@@ -18,6 +18,7 @@ import cg.common.check.*;
 import cg.common.core.Logging;
 import parser.FusionTablesSqlLexer;
 import parser.FusionTablesSqlParser;
+import util.StringUtil;
 
 public class Util {
 
@@ -112,7 +113,7 @@ public class Util {
 	public static ANTLRInputStream getInput(String source) {
 		ANTLRInputStream input;
 
-		input = new ANTLRInputStream(source);
+		input = new ANTLRInputStream(StringUtil.nonNull(source));
 
 		return input;
 	}

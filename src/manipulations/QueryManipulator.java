@@ -3,9 +3,9 @@ package manipulations;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
-import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
@@ -15,8 +15,9 @@ import com.google.common.base.Optional;
 
 import cg.common.check.Check;
 import cg.common.core.Logging;
-import gc.common.structures.OrderedIntTuple;
-import interfeces.Connector;
+import interfacing.Connector;
+import interfacing.Const;
+import interfacing.SyntaxElement;
 import manipulations.Util.Stuff;
 import manipulations.results.ParseResult;
 import manipulations.results.RefactoredSql;
@@ -26,56 +27,6 @@ import parser.FusionTablesSqlParser;
 import util.StringUtil;
 
 public class QueryManipulator {
-
-	private boolean bareSelect(String q) {
-		return q.toLowerCase().replace("select", "").replace(" ", "").length() == 0;
-	}
-
-	public class QueryPatcher {
-		public final Optional<CursorContext> context;
-		public final int cursorPosition;
-		public Optional<Integer> newCursorPosition = Optional.absent();
-		private final String query;
-
-		public QueryPatcher(Optional<CursorContext> context, int cursorPosition, String query) {
-			this.context = context;
-			this.cursorPosition = cursorPosition;
-			this.query = query;
-		}
-
-		public String[] getContinuations() {
-			if (!context.isPresent())
-				return new String[0];
-			else
-				return QueryManipulator.getContinuations(context.get().contextAtCursor);
-		}
-
-		private void setNewCursorPosition(int i) {
-			newCursorPosition = Optional.of(Integer.valueOf(i));
-		}
-
-		public String patch(Optional<String> value, Optional<String> maybeTableName) {
-			String result = query;
-			boolean bareSelect = bareSelect(query);
-
-			if (value.isPresent() && context.isPresent()) {
-				Optional<OrderedIntTuple> boundaries = context.get().boundaries;
-				if (boundaries.isPresent()) {
-					result = StringUtil.replace(query, boundaries.get(), value.get());
-					int offsetNewCursor = value.get().length() - 1 - (boundaries.get().hi() - boundaries.get().lo());
-					setNewCursorPosition(cursorPosition + offsetNewCursor);
-				} else {
-					result = StringUtil.insert(query, cursorPosition, value.get());
-					setNewCursorPosition(cursorPosition + value.get().length());
-				}
-				if (bareSelect && maybeTableName.isPresent())
-					result = result + "\nFROM " + maybeTableName.get() + ";";
-
-			}
-			return result;
-		}
-
-	}
 
 	private class DiggedAliases extends ParseResult {
 		Map<String, String> aliases;
@@ -99,7 +50,6 @@ public class QueryManipulator {
 
 		this.connector = c;
 		this.tableNameToIdMapper = new TableNameToIdMapper(connector.getTableNameToIdMap());
-		connector.getTableNameToIdMap();
 		this.query = query;
 
 		statementType = getStatementType(getParser());
@@ -225,8 +175,8 @@ public class QueryManipulator {
 		CursorContextListener cursorContextListener = new CursorContextListener(cursorPosition, stuff.parser);
 		stuff.parser.removeErrorListeners();
 		stuff.parser.setErrorHandler(new RecognitionErrorStrategy(cursorContextListener));
-
 		walker.walk(cursorContextListener, stuff.parser.fusionTablesSql());
+
 		return cursorContextListener;
 	}
 
@@ -238,30 +188,30 @@ public class QueryManipulator {
 		return false;
 	}
 
-	private int placeInValidTokenRange(String query, int cursorPos) {
+	private int placeIntoValidTokenRange(String query, int cursorPos) {
 		if (cursorPos > 0 && cursorPos <= query.length() && !symBoundary(query.charAt(cursorPos - 1)))
 			cursorPos--;
+
 		return cursorPos;
 	}
 
 	public Optional<CursorContext> getCursorContext(int cursorPosition) {
 		Optional<CursorContext> result = CursorContext
-				.instance(getCursorContextListener(placeInValidTokenRange(query, cursorPosition)));
+				.instance(getCursorContextListener(placeIntoValidTokenRange(query, cursorPosition)));
 		return result;
 	}
 
-	public QueryPatcher getPatcher(int cursorPosition) {
-		return new QueryPatcher(getCursorContext(cursorPosition), cursorPosition, query);
+	public QueryPatching getPatcher(int cursorPosition) {
+		return new QueryPatching(getCursorContext(cursorPosition), cursorPosition, query);
 	}
 
-	public static String[] getContinuations(ParserRuleContext contextAtCursor) {
-		if (contextAtCursor instanceof FusionTablesSqlParser.FusionTablesSqlContext)
-			return new String[] { "ALTER TABLE", "DROP TABLE", "INSERT INTO ", "UPDATE TABLE", "SELECT" };
-		else if (contextAtCursor instanceof FusionTablesSqlParser.ExprContext)
-			return new String[] { "=", ">", "<", ">=", "<=", "IN", "LIKE", "MATCHES", "STARTS WITH", "ENDS WITH",
-					"CONTAINS", "CONTAINS IGNORING CASE", "DOES NOT CONTAIN", "NOT EQUAL TO", "IN", "BETWEEN",
-					"ST_INTERSECTS" };
-		else
-			return new String[0];
+	public List<SyntaxElement> getSyntaxElements() {
+		Stuff stuff = Util.getParser(query);
+
+		SyntaxElementListener syntaxHighlightingListener = new SyntaxElementListener();
+		stuff.parser.removeErrorListeners();
+		walker.walk(syntaxHighlightingListener, stuff.parser.fusionTablesSql());
+
+		return syntaxHighlightingListener.syntaxElements;
 	}
 }

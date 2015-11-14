@@ -31,7 +31,8 @@ import org.junit.Test;
 import cg.common.check.Check;
 import cg.common.core.Logging;
 import cg.common.core.SystemLogger;
-import interfeces.Connector;
+import interfacing.Connector;
+import interfacing.SyntaxElement;
 import manipulations.QueryManipulator;
 import manipulations.Util;
 import manipulations.results.*;
@@ -172,5 +173,11 @@ public class TestQueryManipulation {
 		log(s.problemsEncountered.get());
 	}
 	
-
+	@Test
+	public void testSyntaxElements() {
+		QueryManipulator m = test.Util.getManipulator("select A.a, loc_col from ah where F = -1 and ST_INTERSECTS(loc_col,  CIRCLE(LATLNG(1, 1), 1)) and ST_INTERSECTS(loc_col, RECTANGLE( LATLNG(2, 2), LATLNG(2, 2)) ) order by st_distance(loc_col, LATLNG(0, 0));");
+		List<SyntaxElement> l = m.getSyntaxElements();
+		for (SyntaxElement e : l) 
+			System.out.println(String.format("%d-%d %s %s", e.from, e.to, e.type.name(), e.value));
+	}
 }

@@ -5,7 +5,7 @@ import com.google.common.base.Optional;
 import cg.common.core.SystemLogger;
 import manipulations.CursorContext;
 import manipulations.QueryManipulator;
-import manipulations.QueryManipulator.QueryPatcher;
+import manipulations.QueryPatching;
 
 public class Util {
 
@@ -17,7 +17,7 @@ public class Util {
 		return getManipulator(query).getCursorContext(cursorPosition);
 	}
 
-	public static QueryPatcher getPatcher(String query, int cursorPosition) {
+	public static QueryPatching getPatcher(String query, int cursorPosition) {
 		return getManipulator(query).getPatcher(cursorPosition);
 	}
 
