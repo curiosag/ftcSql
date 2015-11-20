@@ -13,33 +13,64 @@ import org.antlr.v4.runtime.tree.TerminalNode;
 
 import com.google.common.base.Optional;
 
-import cg.common.core.Op;
+import cg.common.check.Check;
 import gc.common.structures.OrderedIntTuple;
 import parser.FusionTablesSqlParser;
+import util.Op;
 import util.StringUtil;
 
 public class CursorContextListener extends SyntaxElementListener implements OnError {
-	/**
-	 * debug switch
-	 */
+
 	private final static boolean debug = true;
 
-	private final int cursorIndex;
+	final int cursorIndex;
 
 	public String[] expectedSymbols = new String[0];
 	public Token offendingSymbol = null;
 	private Token lastTerminalRead = null;
 	private LinkedList<Token> errorTokensRead = new LinkedList<Token>();
+	public final LinkedList<Token> allErrorTokensRead = new LinkedList<Token>();
 
 	private Optional<NameRecognition> currentNameRecognition = Optional.absent();
 
-	public Optional<ParserRuleContext> contextAtCursor = Optional.absent();
-	public Stack<ParserRuleContext> contextStack = new Stack<ParserRuleContext>();
+	private ParserRuleContext parserRuleContext = null;
+	public Stack<ParserRuleContext> parserRuleStack = new Stack<ParserRuleContext>();
+
+	/**
+	 * 
+	 * Optional<NameRecognition> nameAtCursor
+	 *
+	 * absent: if the cursorIdex doesen't reflect a table or column context
+	 * otherwise: either an Optional of TableNameRecognition or
+	 * ColumnNameRecognition
+	 * 
+	 * In both cases name properties may be incomplete or entirely absent,
+	 * indicating, that it actually is a column or table context, but no names
+	 * have been typed yet
+	 * 
+	 * If it is a ColumnNameRecognition, the associated table name, if any,
+	 * reflects the actual table name as defined in the query with aliases
+	 * resolved
+	 * 
+	 * Examples: cursorIndex = 2 "SELECT a from A" -> absent (cursorIndex
+	 * missed)
+	 * 
+	 * assume that cursorIndex is in the column range "SELECT A.a from X as A;"
+	 * -> TableName = "X", ColumnName = "a" "SELECT a from A;" -> TableName =
+	 * "A", ColumnName = "a" "SELECT a " -> TableName = absent, ColumnName = "a"
+	 * "SELECT A.a " -> TableName = absent, ColumnName = "a"
+	 * 
+	 * assume that cursorIndex is in the table name range "SELECT a  from A;" ->
+	 * TableName = "A", TableAlias = absent "SELECT   from A as X;" -> TableName
+	 * = "A", TableAlias = "X"
+	 */
 	public Optional<NameRecognition> nameAtCursor = Optional.absent();
+
 	public List<NameRecognitionTable> tableList = new ArrayList<NameRecognitionTable>();
 
 	private final FusionTablesSqlParser parser;
 
+	
 	public CursorContextListener(int cursorIndex, FusionTablesSqlParser parser) {
 		this.cursorIndex = cursorIndex;
 		this.parser = parser;
@@ -83,7 +114,7 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 	 * successive nested rules r0->r1-r2, say. It covers the cases
 	 * 
 	 * - from a correct input where all rules work as expected until r2 picking
-	 * its content from a terminal nodes - to errors in the input causing any of
+	 * its content from a terminal node - to errors in the input causing any of
 	 * r2, r1 to fail, picking some to all of its content from error nodes. -
 	 * the empty case, where no information from the desired context could be
 	 * picked, except that it was the context - if r0 fails, nothing can be said
@@ -177,16 +208,16 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 	}
 
 	@Override
-	public void enterQualified_column_name_in_expression(
-			FusionTablesSqlParser.Qualified_column_name_in_expressionContext ctx) {
-		super.enterQualified_column_name_in_expression(ctx);
+	public void enterColumn_name_beginning_expr(
+			FusionTablesSqlParser.Column_name_beginning_exprContext ctx) {
+		super.enterColumn_name_beginning_expr(ctx);
 		startNameRecognition(new NameRecognitionColumn(), ctx);
 	}
 
 	@Override
-	public void exitQualified_column_name_in_expression(
-			FusionTablesSqlParser.Qualified_column_name_in_expressionContext ctx) {
-		super.exitQualified_column_name_in_expression(ctx);
+	public void exitColumn_name_beginning_expr(
+			FusionTablesSqlParser.Column_name_beginning_exprContext ctx) {
+		super.exitColumn_name_beginning_expr(ctx);
 		stopNameRecognition(ctx);
 	}
 
@@ -220,9 +251,13 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 		if (!isGenericError(node.getText()))
 			recognize(node.getSymbol(), getStop(node));
 
-		errorTokensRead.add(node.getSymbol());
-
+		addErrorToken(node);
 		debugErrorNode(node);
+	}
+
+	private void addErrorToken(ErrorNode node) {
+		errorTokensRead.add(node.getSymbol());
+		allErrorTokensRead.add(node.getSymbol());
 	}
 
 	@Override
@@ -238,7 +273,7 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 	}
 
 	private OrderedIntTuple getLastErrorBoundaries(int stretchBy) {
-		return OrderedIntTuple.instance(errorTokensRead.getLast().getStartIndex(),
+		return OrderedIntTuple.create(errorTokensRead.getLast().getStartIndex(),
 				errorTokensRead.getLast().getStopIndex() + stretchBy);
 	}
 
@@ -250,7 +285,7 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 		if (lastTerminalRead != null
 				&& StringUtil.equalsAny(lastTerminalRead.getText().toUpperCase(), "WHERE", "AND", "OR")
 				&& errorTokensRead.size() == 1 && cursorWithinBoundaries(getLastErrorBoundaries(stretchBy))) {
-			contextAtCursor = Optional.of(ctx);
+			parserRuleContext = ctx;
 			if (debug)
 				System.out.println("-> matched in hindsight");
 		}
@@ -260,16 +295,19 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 	private void onEnterRule(ParserRuleContext ctx) {
 		debugContext(ctx, "enter");
 
-		pushContext(ctx);
-		if (cursorWithinBoundaries(ctx))
-			contextAtCursor = Optional.of(ctx);
+		if (cursorWithinBoundaries(ctx)) {
+			pushContext(ctx);
+			if (debug)
+				System.out.println("set context at cursor to : " + ctx.getClass().getName());
+			parserRuleContext = ctx;
+		}
 	}
 
 	private void onExitRule(ParserRuleContext ctx) {
 		debugContext(ctx, "exit");
-		popContext();
+		popContextWhenNoMatch();
 	}
-	
+
 	private void startNameRecognition(NameRecognition current, ParserRuleContext ctx) {
 		currentNameRecognition = Optional.of(current);
 
@@ -286,7 +324,7 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 	}
 
 	private OrderedIntTuple getRuleRange(ParserRuleContext ctx) {
-		return OrderedIntTuple.instance(getStart(ctx), getStop(ctx));
+		return OrderedIntTuple.create(getStart(ctx), getStop(ctx));
 	}
 
 	private void stopNameRecognition(ParserRuleContext ctx) {
@@ -377,7 +415,7 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 	}
 
 	private OrderedIntTuple getBoundaries(TerminalNode n) {
-		return OrderedIntTuple.instance(n.getSymbol().getStartIndex(), n.getSymbol().getStopIndex());
+		return OrderedIntTuple.create(n.getSymbol().getStartIndex(), n.getSymbol().getStopIndex());
 	}
 
 	private String markPos(int pos) {
@@ -418,11 +456,16 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 	}
 
 	private void pushContext(ParserRuleContext c) {
-		contextStack.push(c);
+		parserRuleStack.push(c);
 	}
 
-	private void popContext() {
-		if (!contextAtCursor.isPresent())
-			contextStack.pop();
+	private void popContextWhenNoMatch() {
+		if (parserRuleContext == null && ! parserRuleStack.isEmpty())
+			parserRuleStack.pop();
 	}
+
+	public Optional<ParserRuleContext> getParserRuleContext() {
+		return Optional.fromNullable(parserRuleContext);
+	}
+
 }

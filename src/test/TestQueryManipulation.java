@@ -132,7 +132,7 @@ public class TestQueryManipulation {
 		log("r: " + r.refactored);
 
 		String joinQuery = "SELECT A.a1, A.*, table2.b1, Average(table2.b2), Average(A.a2)\n"
-				+ "FROM table1 A LEFT OUTER JOIN table2 as B ON A.id = table2.id\n"
+				+ "FROM table1 as A LEFT OUTER JOIN table2 as B ON A.id = table2.id\n"
 				+ "LEFT OUTER JOIN table3 ON B.id = table3.id;";
 
 		ftr = test.Util.getManipulator(joinQuery);
@@ -143,7 +143,7 @@ public class TestQueryManipulation {
 		log("r: " + r.refactored);
 
 		joinQuery = "SELECT A.a1, A.*, table2.b1, Average(table2.b2), Average(A.a2)\n"
-				+ "FROM table1 A LEFT UUUUTER JOIN table2 as B ON A.id = table2.id\n" // <----
+				+ "FROM table1 as A LEFT UUUUTER JOIN table2 as B ON A.id = table2.id\n" // <----
 																						// syntax
 																						// error
 				+ "LEFT OUTER JOIN table3 ON B.id = table3.id;";

@@ -184,4 +184,14 @@ public class Util {
 		return maybeTableCtx != null && maybeTableCtx.getClass().equals(FusionTablesSqlParser.Table_nameContext.class);
 	}
 	
+	public static boolean withinContext(CursorContext context, ParserRuleContext... candidates) {
+		for (ParserRuleContext e : context.getContextStack())
+			for (int i = 0; i < candidates.length; i++)
+				if (candidates[i].getClass().getName().equals(e.getClass().getName()))
+					return true;
+
+		return false;
+	}
+
+	
 }

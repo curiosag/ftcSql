@@ -12,6 +12,7 @@ import manipulations.NameRecognitionColumn;
 import manipulations.NameRecognition;
 import manipulations.NameRecognitionState;
 import manipulations.NameRecognitionTable;
+import util.StringUtil;
 
 public class TestNameRecognition {
 
@@ -23,15 +24,14 @@ public class TestNameRecognition {
 		return values;
 	}
 
-	private void digest(NameRecognition r, String[] tokens)
-	{
+	private void digest(NameRecognition r, String[] tokens) {
 		for (int i = 0; i < tokens.length; i++)
 			r.digest(new MockToken(tokens[i]));
 	}
-	
+
 	private void check(String[] tokens, NameRecognitionState stateExpected, String name1Expected,
 			String name2Expected) {
-		System.out.println("---------------------------");
+		System.out.println("-------------------------");
 		NameRecognition r = getNR();
 		digest(r, tokens);
 		assertEquals(stateExpected, r.state);
@@ -47,19 +47,18 @@ public class TestNameRecognition {
 		check(sa("a", separator, "b", separator), NameRecognitionState.ERROR, "a", "b");
 		check(sa("a", separator, "b", "c"), NameRecognitionState.ERROR, "a", "b");
 		check(sa("a"), NameRecognitionState.NAME1, "a", null);
-		check(sa("a", separator, "b", "="), NameRecognitionState.EXPR_EMPTY, "a", "b");
-		check(sa("a", separator, "="), NameRecognitionState.EXPR_EMPTY, "a", null);
-		check(sa("a", "="), NameRecognitionState.EXPR_EMPTY, "a", null);
-		check(sa("a", "contains"), NameRecognitionState.EXPR_EMPTY, "a", null);
-		check(sa("=", "17"), NameRecognitionState.EXPR_EMPTY, null, null);
+		check(sa("a", separator, "b", "="), NameRecognitionState.EXPR_NAME2, "a", "b");
+		check(sa("a", separator, "="), NameRecognitionState.EXPR_QUALIFIER, "a", null);
+		check(sa("a", "="), NameRecognitionState.EXPR_NAME1, "a", null);
+		check(sa("a", "contains"), NameRecognitionState.EXPR_NAME1, "a", null);
+		check(sa("=", "a"), NameRecognitionState.EXPR_EMPTY, null, null);
 	}
-	
+
 	@Test
 	public void testNameRecognition() {
 		testNameRecognition(".");
 	}
 
-	
 	@Test
 	public void testColumnNameRecognition() {
 		NameRecognitionColumn r = new NameRecognitionColumn();
@@ -67,7 +66,7 @@ public class TestNameRecognition {
 		assertTrue(r.TableName().equals(Optional.of("a")));
 		assertTrue(r.ColumnName().equals(Optional.of("b")));
 	}
-	
+
 	@Test
 	public void testTableNameRecognition() {
 		NameRecognitionTable r = new NameRecognitionTable();
@@ -75,32 +74,32 @@ public class TestNameRecognition {
 		assertTrue(r.TableName().equals(Optional.of("a")));
 		assertTrue(r.TableAlias().equals(Optional.of("b")));
 	}
-	
+
 	@Rule
-    public ExpectedException thrown= ExpectedException.none();
-	
+	public ExpectedException thrown = ExpectedException.none();
+
 	@Test
-	public void testFailState(){
+	public void testFailState() {
 		thrown.expect(AssertionError.class);
 		check(sa("."), NameRecognitionState.INITIAL, null, null);
 	}
-	
+
 	@Test
-	public void testFailName1(){
+	public void testFailName1() {
 		thrown.expect(AssertionError.class);
 		check(sa("."), NameRecognitionState.ERROR, "a", null);
 	}
-	
+
 	@Test
-	public void testFailName2(){
+	public void testFailName2() {
 		thrown.expect(AssertionError.class);
 		check(sa("a"), NameRecognitionState.ERROR, "b", null);
 	}
-	
+
 	@Test
-	public void testFailName3(){
+	public void testFailName3() {
 		thrown.expect(AssertionError.class);
 		check(sa("a"), NameRecognitionState.ERROR, null, null);
-	}	
-	
+	}
+
 }

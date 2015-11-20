@@ -1,131 +1,150 @@
 package manipulations;
 
-import java.util.LinkedList;
 import java.util.List;
+import org.antlr.v4.runtime.ParserRuleContext;
 
 import com.google.common.base.Optional;
 
 import cg.common.check.Check;
 import gc.common.structures.OrderedIntTuple;
-import interfacing.Completion;
+import interfacing.AbstractCompletion;
+import interfacing.CodeSnippetCompletion;
+import interfacing.ColumnInfo;
 import interfacing.Completions;
-import interfacing.SyntaxElement;
-import interfacing.SyntaxElementType;
-import parser.FusionTablesSqlParser;
-import util.CollectionUtil;
+import interfacing.ModelElementCompletion;
+import interfacing.SqlCompletionType;
+import interfacing.TableInfo;
 import util.StringUtil;
 
 public class QueryPatching {
-	public final Optional<CursorContext> context;
-	public final Object contextAtCursor;
+	public final CursorContext cursorContext;
+	public final Optional<ParserRuleContext> parserRuleContext;
 	public final int cursorPosition;
 	public Optional<Integer> newCursorPosition = Optional.absent();
 	private final String query;
+	private final List<TableInfo> tableInfo;
 
 	private boolean bareSelect(String q) {
 		return q.toLowerCase().replace("select", "").replace(" ", "").length() == 0;
 	}
 
-	public QueryPatching(Optional<CursorContext> context, int cursorPosition, String query) {
-		this.context = context;
-		if (context.isPresent())
-			contextAtCursor = context.get();
-		else
-			contextAtCursor = null;
+	public QueryPatching(List<TableInfo> tableInfo, CursorContext context, int cursorPosition, String query) {
+		this.cursorContext = context;
+		parserRuleContext = context.getParserRuleContext();
 
 		this.cursorPosition = cursorPosition;
 		this.query = query;
+		this.tableInfo = tableInfo;
 	}
 
 	private void setNewCursorPosition(int i) {
 		newCursorPosition = Optional.of(Integer.valueOf(i));
 	}
 
-	public String patch(Optional<Object> itemValue, Optional<String> maybeTableName) {
+	public String patch(AbstractCompletion completion) {
 		String result = query;
 		boolean bareSelect = bareSelect(query);
 
-		String value = null;
-		if (itemValue.isPresent() && context.isPresent()) {
-			if (itemValue.get() instanceof Completion)
-				value = ((Completion) itemValue.get()).completion;
-			else if (itemValue.get() instanceof String)
-				value = (String) itemValue.get();
-			else
-				Check.fail("unexpected type : " + itemValue.get().getClass().getName());
+		String value = patchFromCompletion(completion);
+		Optional<OrderedIntTuple> boundaries = cursorContext.boundaries;
 
-			Optional<OrderedIntTuple> boundaries = context.get().boundaries;
+		if (completion.completionType == SqlCompletionType.columnConditionExprAfterColumn)
+			result = appendCompletion(value.replace("{column_name}", ""));
+		else {
 			if (boundaries.isPresent()) {
 				result = StringUtil.replace(query, boundaries.get(), value);
 				int offsetNewCursor = value.length() - 1 - (boundaries.get().hi() - boundaries.get().lo());
 				setNewCursorPosition(cursorPosition + offsetNewCursor);
-			} else {
-				result = StringUtil.insert(query, cursorPosition, value);
-				setNewCursorPosition(cursorPosition + value.length());
-			}
-			if (bareSelect && maybeTableName.isPresent())
-				result = result + "\nFROM " + maybeTableName.get() + ";";
-
+			} else
+				result = appendCompletion(value);
 		}
-		return result;
-	}
 
-	private final static String locColumn = "{location_column}";
-	private final static String geoCircle = "ST_INTERSECTS(" + locColumn
-			+ ", CIRCLE(LATLNG({number}, {number}), {number})) ";
-	private final static String geoRectangle = "ST_INTERSECTS(" + locColumn
-			+ ", RECTANGLE(LATLNG({number}, {number}), LATLNG({number}, {number}))) ";
-
-	public List<Completion> geoCompletions() {
-		List<Completion> result = new LinkedList<Completion>();
-
-		result.add(new Completion("intersects circle", geoCircle));
-		result.add(new Completion("intersects rectangle", geoRectangle));
+		if (bareSelect && completion.completionType == SqlCompletionType.column && completion.parent != null)
+			result = result + "\nFROM " + completion.parent.displayName + ";";
 
 		return result;
 	}
+
+	private String appendCompletion(String value) {
+		String result;
+		result = StringUtil.insert(query, cursorPosition, value);
+		setNewCursorPosition(cursorPosition + value.length());
+		return result;
+	}
+
+	private String patchFromCompletion(AbstractCompletion completion) {
+		String result = null;
+		if (completion instanceof ModelElementCompletion)
+			result = ((ModelElementCompletion) completion).displayName;
+		else if (completion instanceof CodeSnippetCompletion)
+			result = ((CodeSnippetCompletion) completion).snippet;
+		else
+			Check.fail("unexpected type : " + completion.getClass().getName());
+		return result;
+	}
+
+	private final static boolean addColumnDetails = true;
 
 	public Completions getCompletions() {
-		Check.isTrue(context.isPresent());
-		CursorContext cursorContext = context.get();
-
 		Completions result = new Completions();
 
-		if (cursorContext.contextAtCursor instanceof FusionTablesSqlParser.FusionTablesSqlContext) {
-			result.add("Alter table", "ALTER TABLE {table_name} RENAME TO {name};");
-			result.add("Drop table", "DROP TABLE {table_name};");
-			result.add("Insert single", "INSERT INTO {table_name} ({column_name}) \nVALUES ({value});");
-			result.add("Insert multi",
-					"INSERT INTO {table_name} ({column_name}, {column_name}) \nVALUES ({value}, {value});");
-			result.add("Select", "SELECT ");
-			result.add("Update single", "UPDATE TABLE {table_name} SET {column_name} = {value};");
-			result.add("Update multi",
-					"UPDATE TABLE {table_name} SET {column_name} = {value}, {column_name} = {value};");
+		for (SqlCompletionType c : cursorContext.completionOptions)
+			switch (c) {
+			case table:
+				result.addAll(toCompletions(tableInfo, !addColumnDetails));
+				break;
 
-		} else if (cursorContext.contextAtCursor instanceof FusionTablesSqlParser.ExprContext) {
-			result.add("=", "= {value} ");
-			result.add(">", "> {value} ");
-			result.add("<", "< {value} ");
-			result.add(">=", "=> {value} ");
-			result.add("<=", "<= {value} ");
+			case column:
+				if (cursorContext.underlyingTableName.isPresent()) {
+					Optional<TableInfo> i = findTableInfo(cursorContext.underlyingTableName.get());
+					if (i.isPresent()) {
+						result.addAll(columnsToCompletions(i.get()));
+						break;
+					}
+				}
+				result.addAll(toCompletions(tableInfo, addColumnDetails));
+				break;
 
-			result.add("in", "IN('{value}', '{value}') ");
-			result.add("between", "BETWEEN '{value}' AND '{value}' ");
-			result.add("like", "LIKE '{value}' ");
-			result.add("matches", "MATCHES '{value}' ");
-			result.add("starts with", "STARTS WITH '{value}' ");
-			result.add("ends with", "ENDS WITH '{value}' ");
-			result.add("contains", "CONTAINS '{value}' ");
-			result.add("contains ignoring case", "CONTAINS IGNORING CASE '{value}' ");
-			result.add("does not contain", "DOES NOT CONTAIN '{value}' ");
-			result.add("not equal to", "NOT EQUAL TO '{value}' ");
-			// the error is usually a field name only
-			SyntaxElement lastToken = CollectionUtil.last(cursorContext.syntaxElements);
-			if (!(lastToken.type == SyntaxElementType.error)) {
-				result.add("intersects circle", geoCircle.replace(locColumn, lastToken.value));
-				result.add("intersects rectangle", geoRectangle.replace(locColumn, lastToken.value));
+			case unknown:
+				;
+
+			default:
+				result.add(Snippets.instance().get(c));
 			}
-		}
+
+		return result;
+	}
+
+	private Optional<TableInfo> findTableInfo(String tableName) {
+		for (TableInfo i : tableInfo)
+			if (i.name.equals(tableName))
+				return Optional.of(i);
+
+		return Optional.absent();
+	}
+
+	private Completions toCompletions(List<TableInfo> tableInfo, boolean addDetails) {
+		Completions result = new Completions();
+		for (TableInfo t : tableInfo)
+			result.add(fromTable(t, addDetails));
+
+		return result;
+	}
+
+	private Completions columnsToCompletions(TableInfo tableInfo) {
+		Completions result = new Completions();
+		for (ColumnInfo c : tableInfo.columns)
+			result.add(new ModelElementCompletion(SqlCompletionType.column, c.name, null));
+
+		return result;
+	}
+
+	private ModelElementCompletion fromTable(TableInfo t, boolean addDetails) {
+		ModelElementCompletion result = new ModelElementCompletion(SqlCompletionType.table, t.name, null);
+
+		if (addDetails)
+			for (ColumnInfo c : t.columns)
+				result.addChild(new ModelElementCompletion(SqlCompletionType.column, c.name, result));
 
 		return result;
 	}

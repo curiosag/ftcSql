@@ -1,6 +1,7 @@
 package test;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,8 +34,7 @@ public class MockConnector implements Connector {
 
 	@Override
 	public List<TableInfo> getTableInfo() {
-		fail("no call expected");
-		return null;
+		return new ArrayList<TableInfo>();
 	}
 
 	@Override

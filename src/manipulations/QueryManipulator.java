@@ -47,6 +47,7 @@ public class QueryManipulator {
 	public QueryManipulator(Connector c, Logging log, String query) {
 		Check.notNull(c);
 		Check.notNull(log);
+		query = StringUtil.nonNull(query);
 
 		this.connector = c;
 		this.tableNameToIdMapper = new TableNameToIdMapper(connector.getTableNameToIdMap());
@@ -190,19 +191,21 @@ public class QueryManipulator {
 
 	private int placeIntoValidTokenRange(String query, int cursorPos) {
 		if (cursorPos > 0 && cursorPos <= query.length() && !symBoundary(query.charAt(cursorPos - 1)))
-			cursorPos--;
+			cursorPos--; 
 
 		return cursorPos;
 	}
 
-	public Optional<CursorContext> getCursorContext(int cursorPosition) {
-		Optional<CursorContext> result = CursorContext
+	public CursorContext getCursorContext(int cursorPosition) {
+		Check.isTrue(cursorPosition >= 0 && cursorPosition <= query.length()); // it is <=, not <
+		
+		CursorContext result = CursorContext
 				.instance(getCursorContextListener(placeIntoValidTokenRange(query, cursorPosition)));
 		return result;
 	}
 
 	public QueryPatching getPatcher(int cursorPosition) {
-		return new QueryPatching(getCursorContext(cursorPosition), cursorPosition, query);
+		return new QueryPatching(connector.getTableInfo(), getCursorContext(cursorPosition), cursorPosition, query);
 	}
 
 	public List<SyntaxElement> getSyntaxElements() {

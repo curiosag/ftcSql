@@ -85,6 +85,8 @@ public enum NameRecognitionState {
 		}
 	},
 
+	// this does an extra job of detecting names after oparators, which 
+	// does not occur in future tables sql, one can find only values
 	EXPR_NAME1 {
 		@Override
 		public NameRecognitionState next(String input) {

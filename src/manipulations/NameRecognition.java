@@ -14,9 +14,12 @@ public class NameRecognition {
 
 	public NameRecognitionState state = NameRecognitionState.INITIAL;
 
+	private int totalLo = -1;
+	private int totalHi = -1;
+
 	protected Map<NameRecognitionState, String> names = new HashMap<NameRecognitionState, String>();
 	protected Map<NameRecognitionState, OrderedIntTuple> boundaries = new HashMap<NameRecognitionState, OrderedIntTuple>();
-	
+
 	/**
 	 * reads token sequences <name1> [<separator> <name2>] where separator is
 	 * either "." or "AS" like for "field_name", "table_name.field_name",
@@ -38,12 +41,23 @@ public class NameRecognition {
 			return;
 
 		state = state.next(token.getText());
-		if (state.in(NameRecognitionState.NAME1, NameRecognitionState.NAME2))
-		{
+
+		setTotalBoundaries(token);
+
+		if (state.in(NameRecognitionState.NAME1, NameRecognitionState.NAME2)) {
 			names.put(state, token.getText());
-			boundaries.put(state, OrderedIntTuple.instance(token.getStartIndex(), token.getStopIndex()));
+			boundaries.put(state, OrderedIntTuple.create(token.getStartIndex(), token.getStopIndex()));
 		}
 	};
+
+	private void setTotalBoundaries(Token token) {
+		if (state.in(NameRecognitionState.NAME1, NameRecognitionState.QUALIFIER, NameRecognitionState.NAME2)) {
+			if (totalLo < 0)
+				totalLo = token.getStartIndex();
+			if (totalHi < token.getStopIndex())
+				totalHi = token.getStopIndex();
+		}
+	}
 
 	public Optional<String> getName1() {
 		return Optional.fromNullable(names.get(NameRecognitionState.NAME1));
@@ -55,10 +69,17 @@ public class NameRecognition {
 
 	public Optional<OrderedIntTuple> getBoundaries1() {
 		return Optional.fromNullable(boundaries.get(NameRecognitionState.NAME1));
-		}
+	}
 
 	public Optional<OrderedIntTuple> getBoundaries2() {
 		return Optional.fromNullable(boundaries.get(NameRecognitionState.NAME2));
 	}
-	
+
+	public Optional<OrderedIntTuple> getTotalBoundaries() {
+		if (totalLo < 0)
+			return Optional.absent();
+		else
+			return Optional.of(OrderedIntTuple.create(totalLo, totalHi));
+	}
+
 }

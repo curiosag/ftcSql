@@ -9,28 +9,53 @@ import org.antlr.v4.runtime.misc.IntervalSet;
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
+import gc.common.structures.Tuple;
 import interfacing.SyntaxElement;
 import interfacing.SyntaxElementType;
 import parser.FusionTablesSqlParser;
 import util.CollectionUtil;
 
 public class SyntaxElementListener extends BaseFtListener implements OnError {
-	private final boolean debug = true;
+	private final boolean debug = false;
 
-	private static String[] sql_keywords = { "ALTER", "AND", "OR", "AS", "ASC", "AVERAGE", "BY", "BETWEEN", "CASE",
-			"COLUMN", "COUNT", "CREATE", "DELETE", "DESC", "DROP", "FROM", "GROUP", "HAVING", "IN", "INSERT", "INTO",
-			"JOIN", "LEFT", "LIKE", "LIMIT", "ON", "ORDER", "OUTER", "RENAME", "SELECT", "SUM", "SET", "TABLE", "TO",
-			"UPDATE", "VALUES", "VIEW", "WHERE" };
+	private static String[] sql_keywords = { "ALTER", "AND", "OR", "AS", "BY", "COLUMN", "CREATE", "DELETE", "DROP",
+			"FROM", "GROUP", "HAVING", "INSERT", "INTO", "JOIN", "LEFT", "LIKE", "LIMIT", "OFFSET", "ON", "ORDER",
+			"OUTER", "RENAME", "SELECT", "SET", "TABLE", "TO", "UPDATE", "VALUES", "VIEW", "WHERE" };
 
-	private static String[] ft_keywords = { "CIRCLE", "WITH", "ST_DISTANCE", "ST_INTERSECTS", "STARTS", "CONTAINS",
-			"RECTANGLE", "LATLNG", "DOES", "CONTAIN", "ENDS", "IGNORING", "NOT", "EQUAL", "OF", "OFFSET", "MATCHES",
-			"MAXIMUM", "MINIMUM", };
+	private static String[] ft_keywords = { "DESC", "AVERAGE", "COUNT", "CIRCLE", "ASC", "SUM", "WITH", "ST_DISTANCE",
+			"ST_INTERSECTS", "IN", "BETWEEN", "STARTS", "CASE", "CONTAINS", "RECTANGLE", "LATLNG", "DOES", "CONTAIN",
+			"ENDS", "IGNORING", "NOT", "EQUAL", "OF", "MATCHES", "MAXIMUM", "MINIMUM", };
 
 	private static List<String> sqlkeywords = CollectionUtil.sort(CollectionUtil.toList(sql_keywords));
 	private static List<String> ftkeywords = CollectionUtil.sort(CollectionUtil.toList(ft_keywords));
 
 	private SyntaxElementType currentElementType = SyntaxElementType.unknown;
+
 	public final List<SyntaxElement> syntaxElements = new LinkedList<SyntaxElement>();
+
+	/**
+	 * 
+	 * @param charIndex
+	 *            any integer
+	 * @return the index of the first token where the start of the token
+	 *         (token.from) >= tokenIndexBegin -1 if no token of that kind
+	 *         exists
+	 */
+	public int getElementIndex(int charIndex) {
+
+		int startIdx = -1;
+		for (int i = 0; i < syntaxElements.size(); i++)
+			if (syntaxElements.get(i).from >= charIndex) {
+				startIdx = i;
+				break;
+			}
+		return startIdx;
+	}
+
+	public Tuple<List<SyntaxElement>> partitionSyntaxElements(int partitionAtCharIndex) {
+		int partAt = getElementIndex(partitionAtCharIndex);
+		return CollectionUtil.partition(partAt, syntaxElements);
+	}
 
 	private static boolean isSqlKeyword(String s) {
 		return Collections.binarySearch(sqlkeywords, s.toUpperCase()) >= 0;
@@ -40,26 +65,17 @@ public class SyntaxElementListener extends BaseFtListener implements OnError {
 		return Collections.binarySearch(ftkeywords, s.toUpperCase()) >= 0;
 	}
 
+	private void addElement(Token token, SyntaxElementType type) {
+		syntaxElements.add(SyntaxElement.create(token.getText(), token.getStartIndex(), token.getStopIndex(), type));
+		if (debug) {
+			SyntaxElement e = syntaxElements.get(syntaxElements.size() - 1);
+			System.out.println(String.format("%d-%d %s %s", e.from, e.to, e.type.name(), e.value));
+		}
+	}
+
 	@Override
 	public void notifyOnError(Token offendingToken, Token missingToken, IntervalSet tokensExpected) {
 
-	}
-
-	private void addElement(Token token, SyntaxElementType type) {
-		syntaxElements.add(SyntaxElement.create(token.getText(), token.getStartIndex(), token.getStopIndex(), type));
-		SyntaxElement e = syntaxElements.get(syntaxElements.size() - 1);
-		if (debug)
-			System.out.println(String.format("%d-%d %s %s", e.from, e.to, e.type.name(), e.value));
-	}
-
-	@Override
-	public void visitTerminal(TerminalNode node) {
-		if (currentElementType != SyntaxElementType.unknown)
-			addElement(node.getSymbol(), currentElementType);
-		else if (isSqlKeyword(node.getText()))
-			addElement(node.getSymbol(), SyntaxElementType.sql_keyword);
-		else if (isFtKeyword(node.getText()))
-			addElement(node.getSymbol(), SyntaxElementType.ft_keyword);
 	}
 
 	@Override
@@ -140,6 +156,16 @@ public class SyntaxElementListener extends BaseFtListener implements OnError {
 	@Override
 	public void exitString_literal(FusionTablesSqlParser.String_literalContext ctx) {
 		unSetElementType(SyntaxElementType.stringLiteral);
+	}
+
+	@Override
+	public void visitTerminal(TerminalNode node) {
+		if (currentElementType != SyntaxElementType.unknown)
+			addElement(node.getSymbol(), currentElementType);
+		else if (isSqlKeyword(node.getText()))
+			addElement(node.getSymbol(), SyntaxElementType.sql_keyword);
+		else if (isFtKeyword(node.getText()))
+			addElement(node.getSymbol(), SyntaxElementType.ft_keyword);
 	}
 
 	@Override
