@@ -1,19 +1,23 @@
 package test;
 
+import java.util.LinkedList;
 import java.util.List;
 
 import cg.common.core.SystemLogger;
 import interfacing.SyntaxElement;
+import interfacing.TableInfo;
 import manipulations.CursorContext;
 import manipulations.QueryManipulator;
 import manipulations.QueryPatching;
+import manipulations.TableNameToIdMapper;
 import util.Op;
 import util.StringUtil;
 
 public class Util {
 
 	public static QueryManipulator getManipulator(String query) {
-		return new QueryManipulator(MockConnector.instance(null), new SystemLogger(), query);
+		 List<TableInfo> tableInfos = new LinkedList<TableInfo>();
+		return new QueryManipulator(tableInfos, new TableNameToIdMapper(tableInfos), new SystemLogger(), query);
 	}
 	
 	private static void debug(String objectRequested, String query, int cursorPosition)

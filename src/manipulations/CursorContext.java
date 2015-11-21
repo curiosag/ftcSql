@@ -20,7 +20,7 @@ import util.CollectionUtil;
 import util.Op;
 
 public class CursorContext {
-	private final boolean debug = true;
+	private final boolean debug = false;
 	private final CursorContextListener cursorContextListener;
 
 	public final int cursorIndex;

@@ -1,10 +1,13 @@
 package manipulations;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Optional;
 
 import cg.common.check.Check;
+import interfacing.TableInfo;
 
 public class TableNameToIdMapper {
 
@@ -16,6 +19,15 @@ public class TableNameToIdMapper {
 		this.namesToIds = namesToIds;
 	}
 
+	public TableNameToIdMapper(List<TableInfo> tables) {
+		Check.notNull(tables);
+
+		this.namesToIds = new HashMap<String, String>();
+		for (TableInfo t : tables) 
+			namesToIds.put(t.name, t.id);
+	}
+
+	
 	public boolean isId(String identifier) {
 		return namesToIds.containsValue(identifier);
 	}

@@ -8,6 +8,7 @@ public class SyntaxElement {
 	public final int to;
 	public final SyntaxElementType type;
 	public final String value;
+	private boolean semanticError = false;
 	
 	private SyntaxElement(String value, int from, int to, SyntaxElementType type)
 	{
@@ -29,6 +30,14 @@ public class SyntaxElement {
 			if (e.value.toLowerCase().equals(lcValue))
 				return true;
 		return false;
+	}
+
+	public boolean hasSemanticError() {
+		return semanticError;
+	}
+
+	public void setSemanticError(boolean semanticError) {
+		this.semanticError = semanticError;
 	}
 	
 }

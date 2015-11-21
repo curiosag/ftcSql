@@ -38,11 +38,6 @@ public class MockConnector implements Connector {
 	}
 
 	@Override
-	public Map<String, String> getTableNameToIdMap() {
-		return tableNameToIdMap;
-	}
-
-	@Override
 	public String executeSql(String query) throws IOException {
 		fail("no call expected");
 		return null;

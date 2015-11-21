@@ -15,9 +15,9 @@ import com.google.common.base.Optional;
 
 import cg.common.check.Check;
 import cg.common.core.Logging;
-import interfacing.Connector;
 import interfacing.Const;
 import interfacing.SyntaxElement;
+import interfacing.TableInfo;
 import manipulations.Util.Stuff;
 import manipulations.results.ParseResult;
 import manipulations.results.RefactoredSql;
@@ -38,19 +38,20 @@ public class QueryManipulator {
 		}
 	}
 
-	private final Connector connector;
+	private final List<TableInfo> tableInfo;
 	private final TableNameToIdMapper tableNameToIdMapper;
 	private final ParseTreeWalker walker = new ParseTreeWalker();
 	private final String query;
 	public final StatementType statementType;
 
-	public QueryManipulator(Connector c, Logging log, String query) {
-		Check.notNull(c);
+	public QueryManipulator(List<TableInfo> tableInfo, TableNameToIdMapper tableNameToIdMapper, Logging log, String query) {
+		Check.notNull(tableInfo);
+		Check.notNull(tableNameToIdMapper);
 		Check.notNull(log);
 		query = StringUtil.nonNull(query);
 
-		this.connector = c;
-		this.tableNameToIdMapper = new TableNameToIdMapper(connector.getTableNameToIdMap());
+		this.tableInfo = tableInfo;
+		this.tableNameToIdMapper = tableNameToIdMapper;
 		this.query = query;
 
 		statementType = getStatementType(getParser());
@@ -95,12 +96,16 @@ public class QueryManipulator {
 	private ResolvedTableNames resolveTableNames(String nameFrom, String nameTo, String problemsTillNow) {
 		String problem = null;
 
-		Optional<String> tableId = tableNameToIdMapper.resolveTableId(nameFrom);
+		Optional<String> tableId = resolveTableId(nameFrom);
 		if (!tableId.isPresent())
 			problem = "Could not resolve id for table name '" + nameFrom + "'\r\n";
 
 		return new ResolvedTableNames(nameFrom, tableId, nameTo, StringUtil.concat(problem, problemsTillNow));
 
+	}
+
+	private Optional<String> resolveTableId(String nameFrom) {
+		return tableNameToIdMapper.resolveTableId(nameFrom);
 	}
 
 	public ResolvedTableNames getAlterTableIdentifiers() {
@@ -191,30 +196,33 @@ public class QueryManipulator {
 
 	private int placeIntoValidTokenRange(String query, int cursorPos) {
 		if (cursorPos > 0 && cursorPos <= query.length() && !symBoundary(query.charAt(cursorPos - 1)))
-			cursorPos--; 
+			cursorPos--;
 
 		return cursorPos;
 	}
 
 	public CursorContext getCursorContext(int cursorPosition) {
-		Check.isTrue(cursorPosition >= 0 && cursorPosition <= query.length()); // it is <=, not <
-		
+		Check.isTrue(cursorPosition >= 0
+				&& cursorPosition <= query.length()); /* it is <=, not < */
+
 		CursorContext result = CursorContext
 				.instance(getCursorContextListener(placeIntoValidTokenRange(query, cursorPosition)));
 		return result;
 	}
 
 	public QueryPatching getPatcher(int cursorPosition) {
-		return new QueryPatching(connector.getTableInfo(), getCursorContext(cursorPosition), cursorPosition, query);
+		return new QueryPatching(tableInfo, getCursorContext(cursorPosition), cursorPosition, query);
 	}
 
 	public List<SyntaxElement> getSyntaxElements() {
 		Stuff stuff = Util.getParser(query);
 
-		SyntaxElementListener syntaxHighlightingListener = new SyntaxElementListener();
+		CursorContextListener l = new CursorContextListener(0, stuff.parser);
 		stuff.parser.removeErrorListeners();
-		walker.walk(syntaxHighlightingListener, stuff.parser.fusionTablesSql());
+		walker.walk(l, stuff.parser.fusionTablesSql());
 
-		return syntaxHighlightingListener.syntaxElements;
+		return l.syntaxElements;
 	}
+
+
 }

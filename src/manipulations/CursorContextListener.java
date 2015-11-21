@@ -13,7 +13,6 @@ import org.antlr.v4.runtime.tree.TerminalNode;
 
 import com.google.common.base.Optional;
 
-import cg.common.check.Check;
 import gc.common.structures.OrderedIntTuple;
 import parser.FusionTablesSqlParser;
 import util.Op;
@@ -21,7 +20,7 @@ import util.StringUtil;
 
 public class CursorContextListener extends SyntaxElementListener implements OnError {
 
-	private final static boolean debug = true;
+	private final static boolean debug = false;
 
 	final int cursorIndex;
 
@@ -34,7 +33,8 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 	private Optional<NameRecognition> currentNameRecognition = Optional.absent();
 
 	private ParserRuleContext parserRuleContext = null;
-	public Stack<ParserRuleContext> parserRuleStack = new Stack<ParserRuleContext>();
+	public final Stack<ParserRuleContext> parserRuleStack = new Stack<ParserRuleContext>();
+	public final List<NameRecognition> allNames = new ArrayList<NameRecognition>();
 
 	/**
 	 * 
@@ -70,7 +70,6 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 
 	private final FusionTablesSqlParser parser;
 
-	
 	public CursorContextListener(int cursorIndex, FusionTablesSqlParser parser) {
 		this.cursorIndex = cursorIndex;
 		this.parser = parser;
@@ -208,15 +207,13 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 	}
 
 	@Override
-	public void enterColumn_name_beginning_expr(
-			FusionTablesSqlParser.Column_name_beginning_exprContext ctx) {
+	public void enterColumn_name_beginning_expr(FusionTablesSqlParser.Column_name_beginning_exprContext ctx) {
 		super.enterColumn_name_beginning_expr(ctx);
 		startNameRecognition(new NameRecognitionColumn(), ctx);
 	}
 
 	@Override
-	public void exitColumn_name_beginning_expr(
-			FusionTablesSqlParser.Column_name_beginning_exprContext ctx) {
+	public void exitColumn_name_beginning_expr(FusionTablesSqlParser.Column_name_beginning_exprContext ctx) {
 		super.exitColumn_name_beginning_expr(ctx);
 		stopNameRecognition(ctx);
 	}
@@ -329,8 +326,14 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 
 	private void stopNameRecognition(ParserRuleContext ctx) {
 		if (currentNameRecognition.isPresent()) {
+			enlistName(currentNameRecognition.get());
 			currentNameRecognition = Optional.absent();
 		}
+	}
+
+	private void enlistName(NameRecognition curr) {
+		if (curr.getName1().isPresent() || curr.getName2().isPresent())
+			allNames.add(curr);
 	}
 
 	private int getStop(ParserRuleContext ctx) {
@@ -460,7 +463,7 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 	}
 
 	private void popContextWhenNoMatch() {
-		if (parserRuleContext == null && ! parserRuleStack.isEmpty())
+		if (parserRuleContext == null && !parserRuleStack.isEmpty())
 			parserRuleStack.pop();
 	}
 

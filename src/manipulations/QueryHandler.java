@@ -2,8 +2,13 @@ package manipulations;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Observable;
+
+import com.google.common.base.Optional;
 
 import cg.common.check.Check;
 import cg.common.core.Logging;
@@ -14,6 +19,7 @@ import interfacing.TableInfo;
 import manipulations.QueryPatching;
 import manipulations.results.RefactoredSql;
 import manipulations.results.ResolvedTableNames;
+import manipulations.results.TableReference;
 
 public class QueryHandler extends Observable {
 
@@ -23,8 +29,10 @@ public class QueryHandler extends Observable {
 	private final Connector connector;
 	private final boolean preview = true;
 	private final boolean execute = !preview;
-	private final List<TableInfo> tableInfo = null;
-
+	private final List<TableInfo> tableInfo = new LinkedList<TableInfo>();
+	private final Map<String, TableInfo> tableNameToTableInfo = new HashMap<String, TableInfo>();
+	private TableNameToIdMapper tableNameToIdMapper; 
+	
 	public QueryHandler(Logging logger, Connector c) {
 		Check.notNull(logger);
 		Check.notNull(c);
@@ -37,22 +45,37 @@ public class QueryHandler extends Observable {
 	}
 
 	private QueryManipulator createManipulator(String query) {
-		return new QueryManipulator(connector, logger, query);
+		return new QueryManipulator(internalGetTableInfo(false), tableNameToIdMapper,  logger, query);
 	}
 
 	private void reloadTableList() {
-		internalGetTableList(reload);
+		internalGetTableInfo(reload);
 	}
 
-	private synchronized List<TableInfo> internalGetTableList(boolean reload) {
-		if (tableInfo == null || reload)
-			return connector.getTableInfo();
-		else
-			return tableInfo;
+	private TableInfo getTableInfo(String tableName)
+	{
+		internalGetTableInfo(false);
+		return tableNameToTableInfo.get(tableName);
+	}
+	
+	private synchronized List<TableInfo> internalGetTableInfo(boolean reload) {
+		if (tableInfo.isEmpty() || reload){
+			tableInfo.clear();
+			tableInfo.addAll(connector.getTableInfo());
+			populateTableMaps(tableInfo);	
+		}
+		return tableInfo;
+	}
+
+	private void populateTableMaps(List<TableInfo> tableInfo) {
+		tableNameToTableInfo.clear();
+		for (TableInfo t : tableInfo) 
+			tableNameToTableInfo.put(t.name, t);
+		tableNameToIdMapper = new TableNameToIdMapper(tableInfo);
 	}
 
 	public List<TableInfo> getTableList(boolean addDetails) {
-		List<TableInfo> info = internalGetTableList(!reload);
+		List<TableInfo> info = internalGetTableInfo(!reload);
 		List<TableInfo> result;
 		if (addDetails)
 			result = info;
@@ -181,7 +204,63 @@ public class QueryHandler extends Observable {
 
 	public List<SyntaxElement> getHighlighting(String query)
 	{
-		return createManipulator(query).getSyntaxElements();
+		QueryManipulator m = createManipulator(query);
+		List<SyntaxElement> result = getSyntaxElements(m.getCursorContextListener(0));
+		
+		return result;
+	}
+
+	private List<SyntaxElement> getSyntaxElements(CursorContextListener l) {
+		Check.isTrue(l.tableList.size() <= 1);
+
+		Optional<TableReference> tableReference;
+		if (l.tableList.size() == 1)
+			tableReference = resolveTable(l.tableList.get(0));
+		else
+			tableReference = Optional.absent();
+
+		Semantics semantics = new Semantics(tableReference, l.allNames);
+		semantics.setSemanticAttributes(l.syntaxElements);
+		
+		debug(l.syntaxElements);
+		
+		return l.syntaxElements;
+	}
+
+	private void debug(List<SyntaxElement> syntaxElements) {
+		 System.out.println("--- syntax elements ---");
+		 for (SyntaxElement s : syntaxElements) 
+			 System.out.println(String.format("%s %s %s", s.value, s.type.name(), s.hasSemanticError() ? "<bad>" : "ok"));
+	}
+
+	private Optional<TableReference> resolveTable(NameRecognitionTable tableRecognized) {
+
+		if (tableRecognized.TableName().isPresent()) {
+			String tableName = tableRecognized.TableName().get();
+			Optional<String> id = resolveTableId(tableName);
+
+			if (id.isPresent()) {
+				TableInfo t = getTableInfo(tableName);
+				Check.notNull(t);
+				return Optional.of(new TableReference(tableName, tableRecognized.TableAlias(), id.get(),
+						getColumnNames(t.columns)));
+			}
+		}
+		return Optional.absent();
+	}
+
+	private Optional<String> resolveTableId(String tableName) {
+		return tableNameToIdMapper.idForName(tableName);
+	}
+	
+	private List<String> getColumnNames(List<ColumnInfo> columns) {
+		Check.notNull(columns);
+		List<String> result = new ArrayList<String>();
+
+		for (ColumnInfo c : columns)
+			result.add(c.name);
+
+		return result;
 	}
 	
 	private void onStructureChanged() {

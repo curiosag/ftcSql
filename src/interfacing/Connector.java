@@ -10,8 +10,6 @@ public interface Connector {
 
   List<TableInfo> getTableInfo();
 
-  Map<String, String> getTableNameToIdMap();
-
   String executeSql(String query) throws IOException;
 
   String execSql(String query);
