@@ -22,7 +22,8 @@ import manipulations.results.ResolvedTableNames;
 import manipulations.results.TableReference;
 
 public class QueryHandler extends Observable {
-
+	private boolean debug = true;
+	
 	private boolean reload = true;
 	public final boolean ADD_DETAILS = true;
 	private final Logging logger;
@@ -31,8 +32,8 @@ public class QueryHandler extends Observable {
 	private final boolean execute = !preview;
 	private final List<TableInfo> tableInfo = new LinkedList<TableInfo>();
 	private final Map<String, TableInfo> tableNameToTableInfo = new HashMap<String, TableInfo>();
-	private TableNameToIdMapper tableNameToIdMapper; 
-	
+	private TableNameToIdMapper tableNameToIdMapper;
+
 	public QueryHandler(Logging logger, Connector c) {
 		Check.notNull(logger);
 		Check.notNull(c);
@@ -45,31 +46,30 @@ public class QueryHandler extends Observable {
 	}
 
 	private QueryManipulator createManipulator(String query) {
-		return new QueryManipulator(internalGetTableInfo(false), tableNameToIdMapper,  logger, query);
+		return new QueryManipulator(internalGetTableInfo(false), tableNameToIdMapper, logger, query);
 	}
 
 	private void reloadTableList() {
 		internalGetTableInfo(reload);
 	}
 
-	private TableInfo getTableInfo(String tableName)
-	{
+	private TableInfo getTableInfo(String tableName) {
 		internalGetTableInfo(false);
 		return tableNameToTableInfo.get(tableName);
 	}
-	
+
 	private synchronized List<TableInfo> internalGetTableInfo(boolean reload) {
-		if (tableInfo.isEmpty() || reload){
+		if (tableInfo.isEmpty() || reload) {
 			tableInfo.clear();
 			tableInfo.addAll(connector.getTableInfo());
-			populateTableMaps(tableInfo);	
+			populateTableMaps(tableInfo);
 		}
 		return tableInfo;
 	}
 
 	private void populateTableMaps(List<TableInfo> tableInfo) {
 		tableNameToTableInfo.clear();
-		for (TableInfo t : tableInfo) 
+		for (TableInfo t : tableInfo)
 			tableNameToTableInfo.put(t.name, t);
 		tableNameToIdMapper = new TableNameToIdMapper(tableInfo);
 	}
@@ -202,12 +202,8 @@ public class QueryHandler extends Observable {
 		return createManipulator(query).getPatcher(cursorPos);
 	}
 
-	public List<SyntaxElement> getHighlighting(String query)
-	{
-		QueryManipulator m = createManipulator(query);
-		List<SyntaxElement> result = getSyntaxElements(m.getCursorContextListener(0));
-		
-		return result;
+	public List<SyntaxElement> getHighlighting(String query) {
+		return getSyntaxElements(createManipulator(query).getCursorContextListener(0));
 	}
 
 	private List<SyntaxElement> getSyntaxElements(CursorContextListener l) {
@@ -221,16 +217,18 @@ public class QueryHandler extends Observable {
 
 		Semantics semantics = new Semantics(tableReference, l.allNames);
 		semantics.setSemanticAttributes(l.syntaxElements);
-		
-		debug(l.syntaxElements);
-		
+
+		if (debug)
+			debug(l.syntaxElements);
+
 		return l.syntaxElements;
 	}
 
 	private void debug(List<SyntaxElement> syntaxElements) {
-		 System.out.println("--- syntax elements ---");
-		 for (SyntaxElement s : syntaxElements) 
-			 System.out.println(String.format("%s %s %s", s.value, s.type.name(), s.hasSemanticError() ? "<bad>" : "ok"));
+		System.out.println("--- syntax elements ---");
+		for (SyntaxElement s : syntaxElements)
+			System.out
+					.println(String.format("%s %s %s", s.value, s.type.name(), s.hasSemanticError() ? "<bad>" : "ok"));
 	}
 
 	private Optional<TableReference> resolveTable(NameRecognitionTable tableRecognized) {
@@ -252,7 +250,7 @@ public class QueryHandler extends Observable {
 	private Optional<String> resolveTableId(String tableName) {
 		return tableNameToIdMapper.idForName(tableName);
 	}
-	
+
 	private List<String> getColumnNames(List<ColumnInfo> columns) {
 		Check.notNull(columns);
 		List<String> result = new ArrayList<String>();
@@ -262,7 +260,7 @@ public class QueryHandler extends Observable {
 
 		return result;
 	}
-	
+
 	private void onStructureChanged() {
 		new Thread(new Runnable() {
 			public void run() {

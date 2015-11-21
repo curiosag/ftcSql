@@ -388,29 +388,28 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 	}
 
 	private void debugTerminal(TerminalNode node) {
-		if (debug)
-			say("Terminal: " + qt(node.getText()), getBoundaries(node));
+		debugToken("Terminal: " + qt(node.getText()), getBoundaries(node));
 	}
 
 	private void debugErrorNode(ErrorNode node) {
-
-		if (debug)
-			say("Error: " + node.getText(), getBoundaries(node));
+		debugToken("Error: " + node.getText(), getBoundaries(node));
 	}
 
 	private String qt(String s) {
 		return ">>" + s + "<<";
 	}
 
-	private void say(String what, OrderedIntTuple o) {
-		String swapped = o.swap ? " (indices swapped)" : "";
-		String withinBoundaries = cursorWithinBoundaries(o) ? "+" : "-";
-		System.out.println(String.format("%s %s from %d to %d %s", withinBoundaries, what, o.lo(), o.hi(), swapped));
+	private void debugToken(String what, OrderedIntTuple o) {
+		if (debug) {
+			String swapped = o.swap ? " (indices swapped)" : "";
+			String withinBoundaries = cursorWithinBoundaries(o) ? "+" : "-";
+			System.out
+					.println(String.format("%s %s from %d to %d %s", withinBoundaries, what, o.lo(), o.hi(), swapped));
+		}
 	}
 
 	private void debugContext(ParserRuleContext ctx, String inOrOut) {
-		if (debug)
-			say(inOrOut + " rule: " + ctx.getClass().getSimpleName(), getBoundaries(ctx));
+		debugToken(inOrOut + " rule: " + ctx.getClass().getSimpleName(), getBoundaries(ctx));
 	}
 
 	private OrderedIntTuple getBoundaries(ParserRuleContext ctx) {
@@ -429,33 +428,41 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 		return result;
 	}
 
-	private void say(NameRecognitionColumn t) {
-		System.out.println("Column: " + t.ColumnName().or("") + " of table: " + t.TableName().or(""));
+	private void debugColumn(NameRecognitionColumn t) {
+		if (debug)
+			System.out.println("Column: " + t.ColumnName().or("") + " of table: " + t.TableName().or(""));
 	}
 
-	private void say(NameRecognitionTable t) {
-		System.out.println("Table: " + t.TableName().or("") + " alias: " + t.TableAlias().or(""));
+	private void debugTable(NameRecognitionTable t) {
+		if (debug)
+			System.out.println("Table: " + t.TableName().or("") + " alias: " + t.TableAlias().or(""));
 	}
 
-	private void say(NameRecognition r) {
-		if (r instanceof NameRecognitionColumn)
-			say((NameRecognitionColumn) r);
-		if (r instanceof NameRecognitionTable)
-			say((NameRecognitionTable) r);
-		System.out.println("recognition state: " + r.state.name());
+	private void debug(NameRecognition r) {
+		if (debug) {
+			if (r instanceof NameRecognitionColumn)
+				debugColumn((NameRecognitionColumn) r);
+			if (r instanceof NameRecognitionTable)
+				debugTable((NameRecognitionTable) r);
+			System.out.println("recognition state: " + r.state.name());
+		}
 	}
 
-	private void say() {
-		if (nameAtCursor.isPresent())
-			say(nameAtCursor.get());
-		for (NameRecognitionTable t : tableList)
-			say(t);
+	private void debug() {
+		if (debug) {
+			if (nameAtCursor.isPresent())
+				debug(nameAtCursor.get());
+			for (NameRecognitionTable t : tableList)
+				debugTable(t);
+		}
 	}
 
 	public void debug(String query, int cursorPos) {
-		say();
-		System.out.println(String.format("'%s' cursor after pos: %d", query, cursorPos));
-		System.out.println(markPos(cursorPos));
+		if (debug) {
+			debug();
+			System.out.println(String.format("'%s' cursor after pos: %d", query, cursorPos));
+			System.out.println(markPos(cursorPos));
+		}
 	}
 
 	private void pushContext(ParserRuleContext c) {

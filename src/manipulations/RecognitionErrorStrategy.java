@@ -9,7 +9,7 @@ import cg.common.check.Check;
 public class RecognitionErrorStrategy extends DefaultErrorStrategy {
 
 	private final OnError onErrorCallback;
-	
+
 	public RecognitionErrorStrategy(OnError onErrorCallback) {
 		Check.notNull(onErrorCallback);
 		this.onErrorCallback = onErrorCallback;

@@ -5,7 +5,10 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
+import org.antlr.v4.runtime.ANTLRErrorListener;
+import org.antlr.v4.runtime.ConsoleErrorListener;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
@@ -28,6 +31,17 @@ import util.StringUtil;
 
 public class QueryManipulator {
 
+	private static Map<String, StatementType> statementTypes = new HashMap<String, StatementType>();
+	static {
+		statementTypes.put("ALTER", StatementType.ALTER);
+		statementTypes.put("CREATE", StatementType.CREATE_VIEW);
+		statementTypes.put("DELETE", StatementType.DELETE);
+		statementTypes.put("INSERT", StatementType.INSERT);
+		statementTypes.put("SELECT", StatementType.SELECT);
+		statementTypes.put("UPDATE", StatementType.UPDATE);
+		statementTypes.put("DROP", StatementType.DROP);
+	}
+	
 	private class DiggedAliases extends ParseResult {
 		Map<String, String> aliases;
 
@@ -44,7 +58,8 @@ public class QueryManipulator {
 	private final String query;
 	public final StatementType statementType;
 
-	public QueryManipulator(List<TableInfo> tableInfo, TableNameToIdMapper tableNameToIdMapper, Logging log, String query) {
+	public QueryManipulator(List<TableInfo> tableInfo, TableNameToIdMapper tableNameToIdMapper, Logging log,
+			String query) {
 		Check.notNull(tableInfo);
 		Check.notNull(tableNameToIdMapper);
 		Check.notNull(log);
@@ -54,9 +69,22 @@ public class QueryManipulator {
 		this.tableNameToIdMapper = tableNameToIdMapper;
 		this.query = query;
 
-		statementType = getStatementType(getParser());
+		statementType = getStatementType(query);
 	}
 
+	private StatementType getStatementType(String query) {
+		// avoids the xpath listener complications and is more efficient
+		query = query.trim().toUpperCase();
+		for (Entry<String, StatementType> e : statementTypes.entrySet()) 
+			if (query.startsWith(e.getKey()))
+				return e.getValue();
+
+		return StatementType.UNKNOWN;
+	}
+
+	// Xpath will use an error listener internally that prints stuff to the
+	// console
+	@SuppressWarnings("unused")
 	private StatementType getStatementType(FusionTablesSqlParser parser) {
 		String xpath = "//" + Const.rulename_sql_stmt;
 
@@ -179,8 +207,10 @@ public class QueryManipulator {
 		Stuff stuff = Util.getParser(query);
 
 		CursorContextListener cursorContextListener = new CursorContextListener(cursorPosition, stuff.parser);
-		stuff.parser.removeErrorListeners();
 		stuff.parser.setErrorHandler(new RecognitionErrorStrategy(cursorContextListener));
+		stuff.lexer.removeErrorListeners();
+		stuff.parser.removeErrorListeners();
+
 		walker.walk(cursorContextListener, stuff.parser.fusionTablesSql());
 
 		return cursorContextListener;
@@ -223,6 +253,5 @@ public class QueryManipulator {
 
 		return l.syntaxElements;
 	}
-
 
 }
