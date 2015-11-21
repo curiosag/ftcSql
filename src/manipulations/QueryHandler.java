@@ -22,7 +22,7 @@ import manipulations.results.ResolvedTableNames;
 import manipulations.results.TableReference;
 
 public class QueryHandler extends Observable {
-	private boolean debug = true;
+	private boolean debug = false;
 	
 	private boolean reload = true;
 	public final boolean ADD_DETAILS = true;
@@ -231,12 +231,22 @@ public class QueryHandler extends Observable {
 					.println(String.format("%s %s %s", s.value, s.type.name(), s.hasSemanticError() ? "<bad>" : "ok"));
 	}
 
+	private static int lengthTableId = 41;
 	private Optional<TableReference> resolveTable(NameRecognitionTable tableRecognized) {
 
 		if (tableRecognized.TableName().isPresent()) {
 			String tableName = tableRecognized.TableName().get();
 			Optional<String> id = resolveTableId(tableName);
 
+			if (nameMayActuallyBeAnId(tableName, id)){
+				Optional<String> maybeTableName = tableNameToIdMapper.nameForId(tableName);
+				if (maybeTableName.isPresent())
+				{
+					id = Optional.of(tableName);
+					tableName = maybeTableName.get(); 
+				}
+			}
+			
 			if (id.isPresent()) {
 				TableInfo t = getTableInfo(tableName);
 				Check.notNull(t);
@@ -245,6 +255,10 @@ public class QueryHandler extends Observable {
 			}
 		}
 		return Optional.absent();
+	}
+
+	private boolean nameMayActuallyBeAnId(String tableName, Optional<String> id) {
+		return ! id.isPresent() && tableName.length() == lengthTableId;
 	}
 
 	private Optional<String> resolveTableId(String tableName) {

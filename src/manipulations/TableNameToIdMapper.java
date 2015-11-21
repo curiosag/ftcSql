@@ -3,6 +3,7 @@ package manipulations;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import com.google.common.base.Optional;
 
@@ -23,11 +24,10 @@ public class TableNameToIdMapper {
 		Check.notNull(tables);
 
 		this.namesToIds = new HashMap<String, String>();
-		for (TableInfo t : tables) 
+		for (TableInfo t : tables)
 			namesToIds.put(t.name, t.id);
 	}
 
-	
 	public boolean isId(String identifier) {
 		return namesToIds.containsValue(identifier);
 	}
@@ -41,6 +41,14 @@ public class TableNameToIdMapper {
 			return Optional.of(namesToIds.get(value));
 		else
 			return Optional.absent();
+	}
+
+	public Optional<String> nameForId(String value) {
+		for (Entry<String, String> e : namesToIds.entrySet())
+			if (e.getValue().equals(value))
+				return Optional.of(e.getKey());
+
+		return Optional.absent();
 	}
 
 	public Optional<String> resolveTableId(String value) {
