@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.antlr.v4.runtime.BufferedTokenStream;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.misc.IntervalSet;
 import org.antlr.v4.runtime.tree.ErrorNode;
@@ -33,6 +34,15 @@ public class SyntaxElementListener extends BaseFtListener implements OnError {
 
 	public final List<SyntaxElement> syntaxElements = new LinkedList<SyntaxElement>();
 
+	private final FusionTablesSqlParser parser;
+	public final BufferedTokenStream tokens;
+
+	public SyntaxElementListener(FusionTablesSqlParser parser, BufferedTokenStream tokens)
+	{
+		this.parser = parser;
+		this.tokens = tokens;
+	}
+	
 	/**
 	 * 
 	 * @param charIndex
@@ -66,7 +76,7 @@ public class SyntaxElementListener extends BaseFtListener implements OnError {
 	}
 
 	private void addElement(Token token, SyntaxElementType type) {
-		syntaxElements.add(SyntaxElement.create(token.getText(), token.getStartIndex(), token.getStopIndex(), type));
+		syntaxElements.add(SyntaxElement.create(token.getText(), token.getStartIndex(), token.getStopIndex(), token.getTokenIndex(), type));
 		if (debug) {
 			SyntaxElement e = syntaxElements.get(syntaxElements.size() - 1);
 			System.out.println(String.format("%d-%d %s %s", e.from, e.to, e.type.name(), e.value));

@@ -3,7 +3,10 @@ package interfacing;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.google.common.base.Optional;
+
 import cg.common.check.Check;
+import gc.common.structures.OrderedIntTuple;
 
 public abstract class AbstractCompletion {
 

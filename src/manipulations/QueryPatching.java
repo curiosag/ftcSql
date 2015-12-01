@@ -17,6 +17,8 @@ import interfacing.TableInfo;
 import util.StringUtil;
 
 public class QueryPatching {
+	private final boolean setCursorToEndOfPatch = true;
+	
 	public final CursorContext cursorContext;
 	public final Optional<ParserRuleContext> parserRuleContext;
 	public final int cursorPosition;
@@ -45,7 +47,7 @@ public class QueryPatching {
 		String result = query;
 		boolean bareSelect = bareSelect(query);
 
-		String value = patchFromCompletion(completion);
+		String value = Completions.patchFromCompletion(completion);
 		Optional<OrderedIntTuple> boundaries = cursorContext.boundaries;
 
 		if (completion.completionType == SqlCompletionType.columnConditionExprAfterColumn)
@@ -53,6 +55,7 @@ public class QueryPatching {
 		else {
 			if (boundaries.isPresent()) {
 				result = StringUtil.replace(query, boundaries.get(), value);
+				
 				int offsetNewCursor = value.length() - 1 - (boundaries.get().hi() - boundaries.get().lo());
 				setNewCursorPosition(cursorPosition + offsetNewCursor);
 			} else
@@ -72,21 +75,11 @@ public class QueryPatching {
 		return result;
 	}
 
-	private String patchFromCompletion(AbstractCompletion completion) {
-		String result = null;
-		if (completion instanceof ModelElementCompletion)
-			result = ((ModelElementCompletion) completion).displayName;
-		else if (completion instanceof CodeSnippetCompletion)
-			result = ((CodeSnippetCompletion) completion).snippet;
-		else
-			Check.fail("unexpected type : " + completion.getClass().getName());
-		return result;
-	}
 
 	private final static boolean addColumnDetails = true;
 
 	public Completions getCompletions() {
-		Completions result = new Completions();
+		Completions result = new Completions(cursorContext.boundaries);
 
 		for (SqlCompletionType c : cursorContext.completionOptions)
 			switch (c) {
@@ -124,7 +117,7 @@ public class QueryPatching {
 	}
 
 	private Completions toCompletions(List<TableInfo> tableInfo, boolean addDetails) {
-		Completions result = new Completions();
+		Completions result = new Completions(cursorContext.boundaries);
 		for (TableInfo t : tableInfo)
 			result.add(fromTable(t, addDetails));
 
@@ -132,7 +125,7 @@ public class QueryPatching {
 	}
 
 	private Completions columnsToCompletions(TableInfo tableInfo) {
-		Completions result = new Completions();
+		Completions result = new Completions(cursorContext.boundaries);
 		for (ColumnInfo c : tableInfo.columns)
 			result.add(new ModelElementCompletion(SqlCompletionType.column, c.name, null));
 

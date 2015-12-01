@@ -3,7 +3,10 @@ package manipulations;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.google.common.base.Optional;
+
 import cg.common.check.Check;
+import gc.common.structures.OrderedIntTuple;
 import interfacing.AbstractCompletion;
 import interfacing.CodeSnippetCompletion;
 import interfacing.Completions;
@@ -11,6 +14,7 @@ import interfacing.SqlCompletionType;
 
 public class Snippets {
 
+	private static Optional<OrderedIntTuple> noBoundaries = Optional.absent();
 	private static Snippets instance = null;
 	private Map<SqlCompletionType, Completions> completionMap = new HashMap<SqlCompletionType, Completions>();
 
@@ -23,7 +27,7 @@ public class Snippets {
 	}
 	
 	private Completions getAggregateExpressions() {
-		Completions result = new Completions();
+		Completions result = new Completions(noBoundaries);
 
 		result.addSnippet(SqlCompletionType.aggregate, "sum", "SUM({column_name})");
 		result.addSnippet(SqlCompletionType.aggregate, "count", "COUNT({column_name})");
@@ -35,7 +39,7 @@ public class Snippets {
 	}
 
 	private Completions getSqlStatementExpressions() {
-		Completions result = new Completions();
+		Completions result = new Completions(noBoundaries);
 
 		result.addSnippet(SqlCompletionType.ftSql, "alter table", "ALTER TABLE {table_name} RENAME TO {name};");
 		result.addSnippet(SqlCompletionType.ftSql, "drop table", "DROP TABLE {table_name};");
@@ -50,7 +54,7 @@ public class Snippets {
 	}
 		
 	private Completions getColumnConditionExpressions(SqlCompletionType t) {
-		Completions result = new Completions();
+		Completions result = new Completions(noBoundaries);
 		
 		result.addSnippet(t, "=", "{column_name} = {value} ");
 		result.addSnippet(t, ">", "{column_name} > {value} ");
@@ -78,7 +82,7 @@ public class Snippets {
 	}
 
 	private Completions getOrderByExpressions() {
-		Completions result =  new Completions();
+		Completions result =  new Completions(noBoundaries);
 		SqlCompletionType t = SqlCompletionType.orderBy;
 		result.addSnippet(t, "order by ", "ORDER BY {column_name} ");
 		result.addSnippet(t, "order by, descending", "ORDER BY {column_name} DESC");
@@ -88,7 +92,7 @@ public class Snippets {
 	}
 
 	private Completions getGroupByExpressions() {
-		Completions result =  new Completions();
+		Completions result =  new Completions(noBoundaries);
 		SqlCompletionType t = SqlCompletionType.groupBy;
 		result.addSnippet(t, "group by single", "GROUP BY {column_name} ");
 		result.addSnippet(t, "group by multi", "GROUP BY {column_name}, {column_name} ");

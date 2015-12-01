@@ -2,28 +2,37 @@ package manipulations;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Observable;
+import java.util.Stack;
+
+import org.antlr.v4.runtime.BufferedTokenStream;
+import org.antlr.v4.runtime.Token;
 
 import com.google.common.base.Optional;
 
 import cg.common.check.Check;
 import cg.common.core.Logging;
+import gc.common.structures.StackLight;
 import interfacing.ColumnInfo;
 import interfacing.Connector;
 import interfacing.SyntaxElement;
+import interfacing.SyntaxElementType;
 import interfacing.TableInfo;
 import manipulations.QueryPatching;
 import manipulations.results.RefactoredSql;
 import manipulations.results.ResolvedTableNames;
 import manipulations.results.TableReference;
+import parser.FusionTablesSqlLexer;
+import util.StringUtil;
 
 public class QueryHandler extends Observable {
 	private boolean debug = false;
-	
+
 	private boolean reload = true;
 	public final boolean ADD_DETAILS = true;
 	private final Logging logger;
@@ -202,8 +211,20 @@ public class QueryHandler extends Observable {
 		return createManipulator(query).getPatcher(cursorPos);
 	}
 
+	
+	
+	private String lastQuery = null;
+	List<SyntaxElement> lastHighlighting = null;
+	
 	public List<SyntaxElement> getHighlighting(String query) {
-		return getSyntaxElements(createManipulator(query).getCursorContextListener(0));
+		if (lastHighlighting != null && StringUtil.nullableEqual(query, lastQuery))
+			return lastHighlighting;
+		
+		List<SyntaxElement> result = getSyntaxElements(createManipulator(query).getCursorContextListener(0));
+		lastQuery = query;
+		lastHighlighting = result;
+		
+		return result;
 	}
 
 	private List<SyntaxElement> getSyntaxElements(CursorContextListener l) {
@@ -218,35 +239,72 @@ public class QueryHandler extends Observable {
 		Semantics semantics = new Semantics(tableReference, l.allNames);
 		semantics.setSemanticAttributes(l.syntaxElements);
 
-		if (debug)
-			debug(l.syntaxElements);
+		List<SyntaxElement> complete = addNonSyntaxTokens(l.syntaxElements, l.tokens);
 
-		return l.syntaxElements;
+		if (debug)
+			debug(complete);
+
+		return complete;
+	}
+
+	private List<SyntaxElement> addNonSyntaxTokens(List<SyntaxElement> syntaxElements, BufferedTokenStream tokens) {
+
+		StackLight<SyntaxElement> regularElements = new StackLight<SyntaxElement>(syntaxElements);
+
+		List<SyntaxElement> result = new LinkedList<SyntaxElement>();
+
+		for (Token t : tokens.getTokens()) {
+			if (!regularElements.empty() && regularElements.peek().tokenIndex == t.getTokenIndex())
+				result.add(regularElements.pop());
+			else {
+				SyntaxElementType type = getIrregularType(t);
+				if (type != SyntaxElementType.unknown)
+					result.add(SyntaxElement.create(t, type));
+			}
+		}
+
+		return result;
+	}
+
+	private SyntaxElementType getIrregularType(Token t) {
+		SyntaxElementType type = SyntaxElementType.unknown;
+
+		if (t.getChannel() == FusionTablesSqlLexer.WHITESPACE)
+		{
+			if (t.getText().equals("\n"))
+				type = SyntaxElementType.newline;
+			else
+				type = SyntaxElementType.whitespace;
+		}
+		else if (t.getChannel() == FusionTablesSqlLexer.HIDDEN)
+			type = SyntaxElementType.comment;
+
+		return type;
 	}
 
 	private void debug(List<SyntaxElement> syntaxElements) {
 		System.out.println("--- syntax elements ---");
 		for (SyntaxElement s : syntaxElements)
-			System.out
-					.println(String.format("%s %s %s", s.value, s.type.name(), s.hasSemanticError() ? "<bad>" : "ok"));
+			System.out.println(String.format("%s %s %d-%d %s", s.value.replace("\n", "NL"), s.type.name(), s.from, s.to,
+					s.hasSemanticError() ? "<bad>" : "ok"));
 	}
 
 	private static int lengthTableId = 41;
+
 	private Optional<TableReference> resolveTable(NameRecognitionTable tableRecognized) {
 
 		if (tableRecognized.TableName().isPresent()) {
 			String tableName = tableRecognized.TableName().get();
 			Optional<String> id = resolveTableId(tableName);
 
-			if (nameMayActuallyBeAnId(tableName, id)){
+			if (nameMayActuallyBeAnId(tableName, id)) {
 				Optional<String> maybeTableName = tableNameToIdMapper.nameForId(tableName);
-				if (maybeTableName.isPresent())
-				{
+				if (maybeTableName.isPresent()) {
 					id = Optional.of(tableName);
-					tableName = maybeTableName.get(); 
+					tableName = maybeTableName.get();
 				}
 			}
-			
+
 			if (id.isPresent()) {
 				TableInfo t = getTableInfo(tableName);
 				Check.notNull(t);
@@ -258,7 +316,7 @@ public class QueryHandler extends Observable {
 	}
 
 	private boolean nameMayActuallyBeAnId(String tableName, Optional<String> id) {
-		return ! id.isPresent() && tableName.length() == lengthTableId;
+		return !id.isPresent() && tableName.length() == lengthTableId;
 	}
 
 	private Optional<String> resolveTableId(String tableName) {

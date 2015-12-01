@@ -206,7 +206,7 @@ public class QueryManipulator {
 	public CursorContextListener getCursorContextListener(int cursorPosition) {
 		Stuff stuff = Util.getParser(query);
 
-		CursorContextListener cursorContextListener = new CursorContextListener(cursorPosition, stuff.parser);
+		CursorContextListener cursorContextListener = new CursorContextListener(cursorPosition, stuff.parser, stuff.tokenStream);
 		stuff.parser.setErrorHandler(new RecognitionErrorStrategy(cursorContextListener));
 		stuff.lexer.removeErrorListeners();
 		stuff.parser.removeErrorListeners();
@@ -247,7 +247,7 @@ public class QueryManipulator {
 	public List<SyntaxElement> getSyntaxElements() {
 		Stuff stuff = Util.getParser(query);
 
-		CursorContextListener l = new CursorContextListener(0, stuff.parser);
+		CursorContextListener l = new CursorContextListener(0, stuff.parser, stuff.tokenStream);
 		stuff.parser.removeErrorListeners();
 		walker.walk(l, stuff.parser.fusionTablesSql());
 

@@ -5,6 +5,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Stack;
 
+import org.antlr.v4.runtime.BufferedTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.misc.IntervalSet;
@@ -70,7 +71,8 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 
 	private final FusionTablesSqlParser parser;
 
-	public CursorContextListener(int cursorIndex, FusionTablesSqlParser parser) {
+	public CursorContextListener(int cursorIndex, FusionTablesSqlParser parser, BufferedTokenStream tokens) {
+		super(parser, tokens);
 		this.cursorIndex = cursorIndex;
 		this.parser = parser;
 	}
