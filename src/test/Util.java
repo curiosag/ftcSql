@@ -4,8 +4,8 @@ import java.util.LinkedList;
 import java.util.List;
 
 import cg.common.core.SystemLogger;
-import interfacing.SyntaxElement;
-import interfacing.TableInfo;
+import structures.TableInfo;
+import interfaces.SyntaxElement;
 import manipulations.CursorContext;
 import manipulations.QueryManipulator;
 import manipulations.QueryPatching;

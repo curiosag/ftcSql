@@ -8,8 +8,7 @@ import java.util.Map.Entry;
 import com.google.common.base.Optional;
 
 import cg.common.check.Check;
-import interfacing.TableInfo;
-
+import structures.TableInfo;
 public class TableNameToIdMapper {
 
 	private final Map<String, String> namesToIds;

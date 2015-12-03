@@ -11,8 +11,8 @@ import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
 import gc.common.structures.Tuple;
-import interfacing.SyntaxElement;
-import interfacing.SyntaxElementType;
+import interfaces.SyntaxElement;
+import interfaces.SyntaxElementType;
 import parser.FusionTablesSqlParser;
 import util.CollectionUtil;
 

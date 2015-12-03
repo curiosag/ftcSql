@@ -9,10 +9,10 @@ import java.util.List;
 import com.google.common.base.Optional;
 
 import cg.common.check.Check;
-import interfacing.AbstractCompletion;
-import interfacing.ModelElementCompletion;
-import interfacing.SqlCompletionType;
-import interfacing.SyntaxElement;
+import structures.AbstractCompletion;
+import structures.ModelElementCompletion;
+import interfaces.SqlCompletionType;
+import interfaces.SyntaxElement;
 import manipulations.CursorContext;
 import manipulations.CursorContextListener;
 import manipulations.QueryManipulator;

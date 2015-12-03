@@ -7,13 +7,13 @@ import com.google.common.base.Optional;
 
 import cg.common.check.Check;
 import gc.common.structures.OrderedIntTuple;
-import interfacing.AbstractCompletion;
-import interfacing.CodeSnippetCompletion;
-import interfacing.ColumnInfo;
-import interfacing.Completions;
-import interfacing.ModelElementCompletion;
-import interfacing.SqlCompletionType;
-import interfacing.TableInfo;
+
+import interfaces.SqlCompletionType;
+import structures.AbstractCompletion;
+import structures.ColumnInfo;
+import structures.Completions;
+import structures.ModelElementCompletion;
+import structures.TableInfo;
 import util.StringUtil;
 
 public class QueryPatching {

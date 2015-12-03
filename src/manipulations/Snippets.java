@@ -7,10 +7,11 @@ import com.google.common.base.Optional;
 
 import cg.common.check.Check;
 import gc.common.structures.OrderedIntTuple;
-import interfacing.AbstractCompletion;
-import interfacing.CodeSnippetCompletion;
-import interfacing.Completions;
-import interfacing.SqlCompletionType;
+import interfaces.SqlCompletionType;
+import structures.AbstractCompletion;
+import structures.CodeSnippetCompletion;
+import structures.Completions;
+
 
 public class Snippets {
 

@@ -3,7 +3,7 @@ package test;
 import org.junit.Test;
 
 import cg.common.check.Check;
-import interfacing.SqlCompletionType;
+import interfaces.SqlCompletionType;
 import manipulations.CursorContext;
 import manipulations.QueryPatching;
 import parser.Ctx;

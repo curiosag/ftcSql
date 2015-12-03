@@ -7,24 +7,45 @@ import java.util.List;
 import java.util.Map;
 
 import cg.common.check.Check;
-import interfacing.Connector;
-import interfacing.TableInfo;
+import structures.ColumnInfo;
+import interfaces.Connector;
+import structures.TableInfo;
 
 import static org.junit.Assert.*;
 
 public class MockConnector implements Connector {
 
 	private Map<String, String> tableNameToIdMap;
+	private List<TableInfo> tableInfo = new ArrayList<TableInfo>();
 
-	public static MockConnector instance(Map<String, String> tableNameToIdMap) {
+	private static MockConnector instance = null;
 
-		if (tableNameToIdMap == null) {
-			tableNameToIdMap = new HashMap<String, String>();
+	public static MockConnector instance() {
+		if (instance == null)
+			instance = new MockConnector();
 
-			for (Integer i = 0; i < 10; i++)
-				tableNameToIdMap.put("table" + i.toString(), "ID" + i.toString());
+		return instance;
+	}
+
+	public MockConnector() {
+		tableNameToIdMap = new HashMap<String, String>();
+
+		for (Integer i = 0; i < 10; i++) {
+			String name = "table" + i.toString();
+			String id = "ID" + i.toString();
+			tableNameToIdMap.put(name, id);
+			TableInfo t = new TableInfo(name, id, "table: " + name + " id: " + id, getCols(i));
+			tableInfo.add(t);
 		}
-		return new MockConnector(tableNameToIdMap);
+
+	}
+
+	private static List<ColumnInfo> getCols(Integer i) {
+		List<ColumnInfo> result = new ArrayList<ColumnInfo>();
+		for (int j = 0; j < i + 1; j++) {
+			result.add(new ColumnInfo("C" + Integer.toString(j), "", ""));
+		}
+		return result;
 	}
 
 	private MockConnector(Map<String, String> tableNameToIdMap) {
@@ -34,7 +55,7 @@ public class MockConnector implements Connector {
 
 	@Override
 	public List<TableInfo> getTableInfo() {
-		return new ArrayList<TableInfo>();
+		return tableInfo;
 	}
 
 	@Override

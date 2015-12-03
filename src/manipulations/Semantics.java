@@ -4,8 +4,8 @@ import java.util.List;
 import com.google.common.base.Optional;
 
 import cg.common.check.Check;
-import interfacing.SyntaxElement;
-import interfacing.SyntaxElementType;
+import interfaces.SyntaxElement;
+import interfaces.SyntaxElementType;
 import manipulations.results.TableReference;
 import util.Op;
 

@@ -4,7 +4,7 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 
-import interfacing.SqlCompletionType;
+import interfaces.SqlCompletionType;
 import manipulations.CursorContext;
 import util.Op;
 

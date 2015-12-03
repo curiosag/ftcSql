@@ -18,9 +18,10 @@ import com.google.common.base.Optional;
 
 import cg.common.check.Check;
 import cg.common.core.Logging;
-import interfacing.Const;
-import interfacing.SyntaxElement;
-import interfacing.TableInfo;
+import structures.TableInfo;
+
+import interfaces.SyntaxElement;
+import structures.Const;
 import manipulations.Util.Stuff;
 import manipulations.results.ParseResult;
 import manipulations.results.RefactoredSql;

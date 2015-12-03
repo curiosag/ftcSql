@@ -4,9 +4,9 @@ import static org.junit.Assert.*;
 
 import org.junit.Test;
 
+import interfaces.SqlCompletionType;
 import manipulations.CursorContext;
 import util.Op;
-import interfacing.SqlCompletionType;
 
 public class TestCursorContextTableName {
 
