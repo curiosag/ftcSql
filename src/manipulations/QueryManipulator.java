@@ -19,9 +19,8 @@ import com.google.common.base.Optional;
 import cg.common.check.Check;
 import cg.common.core.Logging;
 import structures.TableInfo;
-
+import uglySmallThings.Const;
 import interfaces.SyntaxElement;
-import structures.Const;
 import manipulations.Util.Stuff;
 import manipulations.results.ParseResult;
 import manipulations.results.RefactoredSql;

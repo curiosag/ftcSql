@@ -14,10 +14,11 @@ import gc.common.structures.Tuple;
 import interfaces.SyntaxElement;
 import interfaces.SyntaxElementType;
 import parser.FusionTablesSqlParser;
+import uglySmallThings.Const;
 import util.CollectionUtil;
 
 public class SyntaxElementListener extends BaseFtListener implements OnError {
-	private final boolean debug = false;
+	private final boolean debug = Const.debugSyntaxElementListener;
 
 	private static String[] sql_keywords = { "ALTER", "AND", "OR", "AS", "BY", "COLUMN", "CREATE", "DELETE", "DROP",
 			"FROM", "GROUP", "HAVING", "INSERT", "INTO", "JOIN", "LEFT", "LIKE", "LIMIT", "OFFSET", "ON", "ORDER",

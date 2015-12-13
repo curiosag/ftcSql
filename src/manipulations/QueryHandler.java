@@ -2,14 +2,11 @@ package manipulations;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Observable;
-import java.util.Stack;
-
 import org.antlr.v4.runtime.BufferedTokenStream;
 import org.antlr.v4.runtime.Token;
 
@@ -21,6 +18,7 @@ import gc.common.structures.StackLight;
 import structures.ColumnInfo;
 import interfaces.Connector;
 import structures.TableInfo;
+import uglySmallThings.Const;
 import interfaces.SyntaxElement;
 import interfaces.SyntaxElementType;
 import manipulations.QueryPatching;
@@ -31,7 +29,7 @@ import parser.FusionTablesSqlLexer;
 import util.StringUtil;
 
 public class QueryHandler extends Observable {
-	private boolean debug = false;
+	private boolean debug = Const.debugQueryHandler;
 
 	private boolean reload = true;
 	public final boolean ADD_DETAILS = true;
@@ -228,11 +226,11 @@ public class QueryHandler extends Observable {
 	}
 
 	private List<SyntaxElement> getSyntaxElements(CursorContextListener l) {
-		Check.isTrue(l.tableList.size() <= 1);
+		//Check.isTrue(l.tableList.size() <= 1);
 
 		Optional<TableReference> tableReference;
-		if (l.tableList.size() == 1)
-			tableReference = resolveTable(l.tableList.get(0));
+		if (l.tableList.size() >= 1)
+			tableReference = resolveTable(l.tableList.get(l.tableList.size() - 1));
 		else
 			tableReference = Optional.absent();
 
@@ -297,7 +295,7 @@ public class QueryHandler extends Observable {
 			String tableName = tableRecognized.TableName().get();
 			Optional<String> id = resolveTableId(tableName);
 
-			if (nameMayActuallyBeAnId(tableName, id)) {
+			if (nameIsActuallyAnId(tableName, id)) {
 				Optional<String> maybeTableName = tableNameToIdMapper.nameForId(tableName);
 				if (maybeTableName.isPresent()) {
 					id = Optional.of(tableName);
@@ -315,7 +313,7 @@ public class QueryHandler extends Observable {
 		return Optional.absent();
 	}
 
-	private boolean nameMayActuallyBeAnId(String tableName, Optional<String> id) {
+	private boolean nameIsActuallyAnId(String tableName, Optional<String> id) {
 		return !id.isPresent() && tableName.length() == lengthTableId;
 	}
 

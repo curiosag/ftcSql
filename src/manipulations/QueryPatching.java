@@ -102,7 +102,7 @@ public class QueryPatching {
 				;
 
 			default:
-				result.add(Snippets.instance().get(c));
+				result.addAll(Snippets.instance().get(c));
 			}
 
 		return result;

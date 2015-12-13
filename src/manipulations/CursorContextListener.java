@@ -16,12 +16,13 @@ import com.google.common.base.Optional;
 
 import gc.common.structures.OrderedIntTuple;
 import parser.FusionTablesSqlParser;
+import uglySmallThings.Const;
 import util.Op;
 import util.StringUtil;
 
 public class CursorContextListener extends SyntaxElementListener implements OnError {
 
-	private final static boolean debug = false;
+	private final static boolean debug = Const.debugCursorContextListener;
 
 	final int cursorIndex;
 
