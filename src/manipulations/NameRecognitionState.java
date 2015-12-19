@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import cg.common.check.Check;
+import uglySmallThings.Const;
 
 public enum NameRecognitionState {
 
@@ -123,10 +124,7 @@ public enum NameRecognitionState {
 		}
 	};
 
-	/**
-	 *  debug switch
-	 */
-	private static boolean debug = false;
+	private static boolean debug = Const.debugNameRecognition;
 	
 	final static Map<String, Integer> leftSideEndIndicators = new HashMap<String, Integer>();
 

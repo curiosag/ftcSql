@@ -222,6 +222,18 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 	}
 
 	@Override
+	public void enterColumn_name_in_dml(FusionTablesSqlParser.Column_name_in_dmlContext ctx) {
+		super.enterColumn_name_in_dml(ctx);
+		startNameRecognition(new NameRecognitionColumn(), ctx);
+	}
+
+	@Override
+	public void exitColumn_name_in_dml(FusionTablesSqlParser.Column_name_in_dmlContext ctx) {
+		super.exitColumn_name_in_dml(ctx);
+		stopNameRecognition(ctx);
+	}
+
+	@Override
 	public void enterTable_name_in_ddl(FusionTablesSqlParser.Table_name_in_ddlContext ctx) {
 		super.enterTable_name_in_ddl(ctx);
 		startNameRecognition(new NameRecognitionTable(), ctx);
@@ -230,6 +242,18 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 	@Override
 	public void exitTable_name_in_ddl(FusionTablesSqlParser.Table_name_in_ddlContext ctx) {
 		super.exitTable_name_in_ddl(ctx);
+		stopNameRecognition(ctx);
+	}
+
+	@Override
+	public void enterTable_name_in_dml(FusionTablesSqlParser.Table_name_in_dmlContext ctx) {
+		super.enterTable_name_in_dml(ctx);
+		startNameRecognition(new NameRecognitionTable(), ctx);
+	}
+
+	@Override
+	public void exitTable_name_in_dml(FusionTablesSqlParser.Table_name_in_dmlContext ctx) {
+		super.exitTable_name_in_dml(ctx);
 		stopNameRecognition(ctx);
 	}
 

@@ -13,6 +13,8 @@ import structures.Completions;
 
 public class Snippets {
 
+	private final static boolean extended_dml = false;
+	
 	private static Optional<OrderedIntTuple> noBoundaries = Optional.absent();
 	private static Snippets instance = null;
 	private Map<SqlCompletionType, Completions> completionMap = new HashMap<SqlCompletionType, Completions>();
@@ -40,20 +42,31 @@ public class Snippets {
 
 	/**
 	 * ${cursor} params aren't really what's needed here
+	 * every parameter starting with "c" is considered to be a column
+	 * triggering column retrieval in completions
 	 * @return
 	 */
 	private Completions getSqlStatementExpressions() {
 		Completions result = new Completions(noBoundaries);
 
-		result.addSnippet(SqlCompletionType.ftSql, "alter table", "ALTER TABLE ${t} RENAME TO {name}; ");
-		result.addSnippet(SqlCompletionType.ftSql, "drop table", "DROP TABLE ${t} ${cursor}; ");
+		result.addSnippet(SqlCompletionType.ftSql, "alter table", "ALTER TABLE ${t} RENAME TO ${name}; ");
+		result.addSnippet(SqlCompletionType.ftSql, "drop table", "DROP TABLE ${t}; ");
+		result.addSnippet(SqlCompletionType.ftSql, "select", "SELECT ${c} FROM ${t};");
 		result.addSnippet(SqlCompletionType.ftSql, "insert single", "INSERT INTO ${t} (${c}) \nVALUES (${value});");
 		result.addSnippet(SqlCompletionType.ftSql, "insert multi",
-				"INSERT INTO ${t} (${c}, ${d}) \nVALUES (${value}, ${value});");
-		result.addSnippet(SqlCompletionType.ftSql, "select", "SELECT ${c} FROM ${t};");
-		result.addSnippet(SqlCompletionType.ftSql, "update single", "UPDATE TABLE ${t} SET ${c} = ${value};");
-		result.addSnippet(SqlCompletionType.ftSql, "update multi",
-				"UPDATE TABLE ${t} SET ${c} = ${value}, ${d} = ${value}; ");
+				"INSERT INTO ${t} (${c1}, ${c2}) \nVALUES (${value1}, ${value2});");
+		
+		result.addSnippet(SqlCompletionType.ftSql, "delete",
+				"DELETE FROM ${t} WHERE ${c}=${value}; ");
+		result.addSnippet(SqlCompletionType.ftSql, "delete all",
+				"DELETE FROM ${t}; ");
+		if (extended_dml) {
+			result.addSnippet(SqlCompletionType.ftSql, "update single", "UPDATE ${t} SET ${c} = ${value};");
+			result.addSnippet(SqlCompletionType.ftSql, "update multi",
+					"UPDATE ${t} SET ${c1} = ${value1}, ${c2} = ${value2}; ");
+						
+		}
+		
 		return result;
 	}
 		

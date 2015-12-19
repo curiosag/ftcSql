@@ -20,6 +20,22 @@ public class TestCursorContextTableName {
 		return i + 0;
 	}
 
+	@Test
+	public void testUpdateStmt() {
+		String q = "update x set y = 1;";
+		CursorContext c = getCursorContext(q, q.indexOf("x"));
+		checkSqlElement(c);
+	}
+	
+	@Test
+	public void testInsertStmt() {
+		String q = "insert into a (col1, col2) values (1, 2);";
+		CursorContext c = getCursorContext(q, q.indexOf("x"));
+		checkSqlElement(c);
+	}
+	
+	//
+	
 	@Test(expected = RuntimeException.class)
 	public void testInvalidCursorPosition1() {
 		String q = "Select x from  s";

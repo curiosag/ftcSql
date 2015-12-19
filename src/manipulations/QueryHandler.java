@@ -166,6 +166,15 @@ public class QueryHandler extends Observable {
 			case SELECT:
 				return hdlQuery(query, ftr, execute);
 
+			case INSERT:
+				return hdlQuery(query, ftr, preview);
+				
+			case UPDATE:
+				return hdlQuery(query, ftr, preview);
+				
+			case DELETE:
+				return hdlQuery(query, ftr, preview);					
+				
 			case CREATE_VIEW:
 				return hdlQuery(query, ftr, execute);
 
@@ -192,6 +201,15 @@ public class QueryHandler extends Observable {
 
 		case SELECT:
 			return hdlQuery(query, ftr, preview);
+			
+		case INSERT:
+			return hdlQuery(query, ftr, preview);
+			
+		case UPDATE:
+			return hdlQuery(query, ftr, preview);
+			
+		case DELETE:
+			return hdlQuery(query, ftr, preview);	
 
 		case CREATE_VIEW:
 			return hdlQuery(query, ftr, preview);
