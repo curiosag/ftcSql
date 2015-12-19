@@ -7,7 +7,9 @@ import cg.common.check.Check;
 import interfaces.SyntaxElement;
 import interfaces.SyntaxElementType;
 import manipulations.results.TableReference;
+import uglySmallThings.Const;
 import util.Op;
+import util.StringUtil;
 
 public class Semantics {
 
@@ -46,7 +48,7 @@ public class Semantics {
 		TableReference tableRef = tableReference.get();
 
 		if (e.type == SyntaxElementType.columnName)
-			return findColumnName(e.value, tableRef.columnNames);
+			return findColumnName(StringUtil.peel(e.value, Const.quoteChar), tableRef.columnNames);
 		
 		// tableName may occur also in qualified column names as <tableName>.<columnName>
 		// where it also may be an alias or the table Id
@@ -56,7 +58,7 @@ public class Semantics {
 		return true;
 
 	}
-
+	
 	private boolean findColumnName(String value, List<String> columnNames) {
 		for (String s : columnNames)
 			if (s.equals(value))

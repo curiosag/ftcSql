@@ -4,8 +4,6 @@ import java.util.List;
 import org.antlr.v4.runtime.ParserRuleContext;
 
 import com.google.common.base.Optional;
-
-import cg.common.check.Check;
 import gc.common.structures.OrderedIntTuple;
 
 import interfaces.SqlCompletionType;
@@ -17,7 +15,6 @@ import structures.TableInfo;
 import util.StringUtil;
 
 public class QueryPatching {
-	private final boolean setCursorToEndOfPatch = true;
 	
 	public final CursorContext cursorContext;
 	public final Optional<ParserRuleContext> parserRuleContext;
@@ -74,7 +71,6 @@ public class QueryPatching {
 		setNewCursorPosition(cursorPosition + value.length());
 		return result;
 	}
-
 
 	private final static boolean addColumnDetails = true;
 
