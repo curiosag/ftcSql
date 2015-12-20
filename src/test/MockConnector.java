@@ -7,7 +7,9 @@ import java.util.List;
 import java.util.Map;
 
 import cg.common.check.Check;
+import cg.common.http.HttpStatus;
 import structures.ColumnInfo;
+import structures.QueryResult;
 import interfaces.Connector;
 import structures.TableInfo;
 
@@ -79,6 +81,11 @@ public class MockConnector implements Connector {
 	public String renameTable(String tableId, String newName) {
 		fail("no call expected");
 		return null;
+	}
+
+	@Override
+	public QueryResult fetch(String query) {
+		return new QueryResult(HttpStatus.SC_FORBIDDEN, null, null);
 	}
 
 }
