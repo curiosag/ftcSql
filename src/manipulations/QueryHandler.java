@@ -14,8 +14,10 @@ import com.google.common.base.Optional;
 
 import cg.common.check.Check;
 import cg.common.core.Logging;
+import cg.common.http.HttpStatus;
 import gc.common.structures.StackLight;
 import structures.ColumnInfo;
+import structures.QueryResult;
 import interfaces.Connector;
 import structures.TableInfo;
 import uglySmallThings.Const;
@@ -116,52 +118,68 @@ public class QueryHandler extends Observable {
 	private String hdlAlterTable(QueryManipulator ftr, boolean preview) {
 		ResolvedTableNames id = ftr.getAlterTableIdentifiers();
 
+		String msg;
 		if (id.problemsEncountered.isPresent())
-			return id.problemsEncountered.get();
+			msg = id.problemsEncountered.get();
 		else if (preview)
-			return String.format("Api call rename to %s, table id %s", id.nameTo, id.idFrom.or(""));
+			msg = String.format("Api call rename to %s, table id %s", id.nameTo, id.idFrom.or(""));
 		else {
-			String result = connector.renameTable(id.idFrom.get(), id.nameTo);
+			msg = connector.renameTable(id.idFrom.get(), id.nameTo);
 			onStructureChanged();
-			return result;
 		}
+		return msg;
 	}
 
-	private String hdlQuery(String query, QueryManipulator ftr, boolean preview) {
+	private QueryResult hdlQuery(String query, QueryManipulator ftr, boolean preview) {
 		RefactoredSql r = createManipulator(query).refactorQuery();
 		if (r.problemsEncountered.isPresent())
-			return r.problemsEncountered.get();
+			return packQueryResult(r.problemsEncountered.get());
 		else if (preview)
-			return r.refactored;
+			return packQueryResult(addLimit(r.refactored));
 		else
-			return connector.execSql(r.refactored);
+			return connector.fetch(addLimit(r.refactored));
+	}
+
+	private String addLimit(String refactored) {
+		String q = refactored.toUpperCase();
+		if (q.indexOf("LIMIT") >= 0)
+			return refactored;
+		
+		refactored = refactored.replace(";", "");
+		if (q.indexOf("OFFSET") < 0)
+			refactored = refactored + "\nOFFSET 0";
+		
+		refactored = refactored + String.format("\nLIMIT %d;", Const.defaultQueryLimit);
+		
+		return refactored;
 	}
 
 	private String hdlDropTable(QueryManipulator ftr, boolean preview) {
 		ResolvedTableNames id = ftr.getTableNameToDrop();
-
+		String msg;
 		if (id.problemsEncountered.isPresent())
 			return id.problemsEncountered.get();
 		else if (preview)
-			return "Api call delete, table id: " + id.idFrom.get();
+			msg = "Api call delete, table id: " + id.idFrom.get();
 		else
 			try {
 				connector.deleteTable(id.idFrom.get());
 				onStructureChanged();
-				return "dropped '" + id.idFrom.get() + "'";
+				msg = "dropped '" + id.idFrom.get() + "'";
 			} catch (IOException e) {
-				return e.getMessage();
+				msg = e.getMessage();
 			}
+		return msg;
 	}
 
-	public String getQueryResult(String query) {
+	public QueryResult getQueryResult(String query) {
 		logger.Info("processing :" + query);
 
 		try {
 			QueryManipulator ftr = createManipulator(query);
 			switch (ftr.statementType) {
 			case ALTER:
-				return hdlAlterTable(ftr, execute);
+				return packQueryResult(hdlAlterTable(ftr, execute));
 
 			case SELECT:
 				return hdlQuery(query, ftr, execute);
@@ -179,16 +197,20 @@ public class QueryHandler extends Observable {
 				return hdlQuery(query, ftr, execute);
 
 			case DROP:
-				return hdlDropTable(ftr, execute);
+				return packQueryResult(hdlDropTable(ftr, execute));
 
 			default:
-				return "Statement not covered: " + query;
+				return packQueryResult("Statement not covered: " + query);
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			return e.getMessage();
+			return packQueryResult(e.getMessage());
 		}
 
+	}
+
+	private QueryResult packQueryResult(String msg) {
+		return new QueryResult(HttpStatus.SC_ACCEPTED, null, msg);
 	}
 
 	public String previewExecutedSql(String query) {
@@ -200,19 +222,19 @@ public class QueryHandler extends Observable {
 			return hdlAlterTable(ftr, preview);
 
 		case SELECT:
-			return hdlQuery(query, ftr, preview);
+			return hdlQuery(query, ftr, preview).message.or("");
 			
 		case INSERT:
-			return hdlQuery(query, ftr, preview);
+			return hdlQuery(query, ftr, preview).message.or("");
 			
 		case UPDATE:
-			return hdlQuery(query, ftr, preview);
+			return hdlQuery(query, ftr, preview).message.or("");
 			
 		case DELETE:
-			return hdlQuery(query, ftr, preview);	
+			return hdlQuery(query, ftr, preview).message.or("");	
 
 		case CREATE_VIEW:
-			return hdlQuery(query, ftr, preview);
+			return hdlQuery(query, ftr, preview).message.or("");
 
 		case DROP:
 			return hdlDropTable(ftr, preview);

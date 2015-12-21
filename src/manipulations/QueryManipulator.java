@@ -72,7 +72,7 @@ public class QueryManipulator {
 		statementType = getStatementType(query);
 	}
 
-	private StatementType getStatementType(String query) {
+	private static StatementType getStatementType(String query) {
 		// avoids the xpath listener complications and is more efficient
 		query = query.trim().toUpperCase();
 		for (Entry<String, StatementType> e : statementTypes.entrySet()) 
