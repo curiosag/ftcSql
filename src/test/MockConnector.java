@@ -2,6 +2,7 @@ package test;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +87,14 @@ public class MockConnector implements Connector {
 	@Override
 	public QueryResult fetch(String query) {
 		return new QueryResult(HttpStatus.SC_FORBIDDEN, null, null);
+	}
+
+	@Override
+	public void reset(Dictionary<String, String> connectionInfo) {
+	}
+
+	@Override
+	public void clearStoredLoginData() {
 	}
 
 }

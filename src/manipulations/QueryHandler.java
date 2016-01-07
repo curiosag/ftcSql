@@ -2,11 +2,17 @@ package manipulations;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Observable;
+import java.util.Vector;
+
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableModel;
+
 import org.antlr.v4.runtime.BufferedTokenStream;
 import org.antlr.v4.runtime.Token;
 
@@ -16,6 +22,7 @@ import cg.common.check.Check;
 import cg.common.core.Logging;
 import cg.common.http.HttpStatus;
 import gc.common.structures.StackLight;
+import structures.ClientSettings;
 import structures.ColumnInfo;
 import structures.QueryResult;
 import interfaces.Connector;
@@ -42,14 +49,23 @@ public class QueryHandler extends Observable {
 	private final List<TableInfo> tableInfo = new LinkedList<TableInfo>();
 	private final Map<String, TableInfo> tableNameToTableInfo = new HashMap<String, TableInfo>();
 	private TableNameToIdMapper tableNameToIdMapper;
+	private final ClientSettings settings;
 
-	public QueryHandler(Logging logger, Connector c) {
+	public QueryHandler(Logging logger, Connector connector, ClientSettings settings) {
 		Check.notNull(logger);
-		Check.notNull(c);
+		Check.notNull(connector);
 		this.logger = logger;
-		this.connector = c;
+		this.connector = connector;
+		this.settings = settings;
 	}
-
+	
+	public void reset(Dictionary<String, String> connectionInfo) 
+	{
+		connector.reset(connectionInfo);
+		reloadTableList();
+	};
+	
+	
 	private void log(String msg) {
 		logger.Info(msg);
 	}
@@ -101,7 +117,7 @@ public class QueryHandler extends Observable {
 		return result;
 	}
 
-	public String getTableInfo() {
+	public String _getTableInfo() {
 		StringBuilder sb = new StringBuilder();
 		List<String> names = new ArrayList<String>();
 
@@ -113,6 +129,32 @@ public class QueryHandler extends Observable {
 		}
 
 		return sb.toString();
+	}
+	
+	public TableModel getTableInfo() {
+		
+		Vector<String> columns = new Vector<String>();
+		columns.add("Id");
+		columns.add("Name");
+		
+		Vector<Vector<String>> rows = new Vector<Vector<String>>();
+		
+				
+		List<String> names = new ArrayList<String>();
+
+		for (TableInfo i : getTableList(ADD_DETAILS)) {
+			if (names.contains(i.name))
+				log("Duplicate table name: '" + i.name + "' name to ID substitution may fail.");
+			
+			names.add(i.name);
+			
+			Vector<String> row = new Vector<String>();
+			row.add(i.id);
+			row.add(i.name);
+			rows.add(row);
+		}
+
+		return new DefaultTableModel(rows, columns);
 	}
 
 	private String hdlAlterTable(QueryManipulator ftr, boolean preview) {
@@ -149,7 +191,7 @@ public class QueryHandler extends Observable {
 		if (q.indexOf("OFFSET") < 0)
 			refactored = refactored + "\nOFFSET 0";
 		
-		refactored = refactored + String.format("\nLIMIT %d;", Const.defaultQueryLimit);
+		refactored = refactored + String.format("\nLIMIT %d;", settings.defaultQueryLimit);
 		
 		return refactored;
 	}
@@ -173,7 +215,7 @@ public class QueryHandler extends Observable {
 	}
 
 	public QueryResult getQueryResult(String query) {
-		logger.Info("processing :" + query);
+		logger.Info(String.format("running: '%s'", query));
 
 		try {
 			QueryManipulator ftr = createManipulator(query);
