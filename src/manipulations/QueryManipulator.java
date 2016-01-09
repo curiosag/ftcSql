@@ -26,6 +26,7 @@ import manipulations.results.ParseResult;
 import manipulations.results.RefactoredSql;
 import manipulations.results.ResolvedTableNames;
 import manipulations.results.Splits;
+import manipulations.results.TableInfoResolver;
 import parser.FusionTablesSqlParser;
 import util.StringUtil;
 
@@ -41,6 +42,7 @@ public class QueryManipulator {
 		statementTypes.put("UPDATE", StatementType.UPDATE);
 		statementTypes.put("DROP", StatementType.DROP);
 		statementTypes.put("DESCRIBE", StatementType.DESCRIBE);
+		statementTypes.put("SHOW", StatementType.SHOW);
 	}
 	
 	private class DiggedAliases extends ParseResult {
@@ -53,20 +55,20 @@ public class QueryManipulator {
 		}
 	}
 
-	private final List<TableInfo> tableInfo;
+	private final TableInfoResolver tableInfoResolver;
 	private final TableNameToIdMapper tableNameToIdMapper;
 	private final ParseTreeWalker walker = new ParseTreeWalker();
 	private final String query;
 	public final StatementType statementType;
 
-	public QueryManipulator(List<TableInfo> tableInfo, TableNameToIdMapper tableNameToIdMapper, Logging log,
+	public QueryManipulator(TableInfoResolver tableInfoResolver, TableNameToIdMapper tableNameToIdMapper, Logging log,
 			String query) {
-		Check.notNull(tableInfo);
+		Check.notNull(tableInfoResolver);
 		Check.notNull(tableNameToIdMapper);
 		Check.notNull(log);
 		query = StringUtil.nonNull(query);
 
-		this.tableInfo = tableInfo;
+		this.tableInfoResolver = tableInfoResolver;
 		this.tableNameToIdMapper = tableNameToIdMapper;
 		this.query = query;
 
@@ -240,9 +242,10 @@ public class QueryManipulator {
 				.instance(getCursorContextListener(placeIntoValidTokenRange(query, cursorPosition)));
 		return result;
 	}
-
+	
 	public QueryPatching getPatcher(int cursorPosition) {
-		return new QueryPatching(tableInfo, getCursorContext(cursorPosition), cursorPosition, query);
+		
+		return new QueryPatching(tableInfoResolver, getCursorContext(cursorPosition), cursorPosition, query);
 	}
 
 	public List<SyntaxElement> getSyntaxElements() {

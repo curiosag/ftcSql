@@ -67,6 +67,7 @@ public class Snippets {
 		}
 		
 		result.addSnippet(SqlCompletionType.ftSql, "describe table", "DESCRIBE ${t};");
+		
 		return result;
 	}
 		

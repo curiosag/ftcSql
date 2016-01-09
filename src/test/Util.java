@@ -3,6 +3,8 @@ package test;
 import java.util.LinkedList;
 import java.util.List;
 
+import com.google.common.base.Optional;
+
 import cg.common.core.SystemLogger;
 import structures.TableInfo;
 import interfaces.SyntaxElement;
@@ -10,6 +12,7 @@ import manipulations.CursorContext;
 import manipulations.QueryManipulator;
 import manipulations.QueryPatching;
 import manipulations.TableNameToIdMapper;
+import manipulations.results.TableInfoResolver;
 import util.Op;
 import util.StringUtil;
 
@@ -17,7 +20,18 @@ public class Util {
 
 	public static QueryManipulator getManipulator(String query) {
 		 List<TableInfo> tableInfos = new LinkedList<TableInfo>();
-		return new QueryManipulator(tableInfos, new TableNameToIdMapper(tableInfos), new SystemLogger(), query);
+		 TableInfoResolver resolver = new TableInfoResolver(){
+
+			@Override
+			public Optional<TableInfo> getTableInfo(String nameOrId) {
+				return null;
+			}
+
+			@Override
+			public List<TableInfo> listTables() {
+				return null;
+			}}; 
+		return new QueryManipulator(resolver, new TableNameToIdMapper(tableInfos), new SystemLogger(), query);
 	}
 	
 	private static void debug(String objectRequested, String query, int cursorPosition)

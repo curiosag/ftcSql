@@ -7,6 +7,7 @@ import com.google.common.base.Optional;
 import gc.common.structures.OrderedIntTuple;
 
 import interfaces.SqlCompletionType;
+import manipulations.results.TableInfoResolver;
 import structures.AbstractCompletion;
 import structures.ColumnInfo;
 import structures.Completions;
@@ -21,19 +22,19 @@ public class QueryPatching {
 	public final int cursorPosition;
 	public Optional<Integer> newCursorPosition = Optional.absent();
 	private final String query;
-	private final List<TableInfo> tableInfo;
+	private final TableInfoResolver tableInfoResolver;
 
 	private boolean bareSelect(String q) {
 		return q.toLowerCase().replace("select", "").replace(" ", "").length() == 0;
 	}
 
-	public QueryPatching(List<TableInfo> tableInfo, CursorContext context, int cursorPosition, String query) {
+	public QueryPatching(TableInfoResolver tableInfoResolver, CursorContext context, int cursorPosition, String query) {
 		this.cursorContext = context;
 		parserRuleContext = context.getParserRuleContext();
 
 		this.cursorPosition = cursorPosition;
 		this.query = query;
-		this.tableInfo = tableInfo;
+		this.tableInfoResolver = tableInfoResolver;
 	}
 
 	private void setNewCursorPosition(int i) {
@@ -80,18 +81,18 @@ public class QueryPatching {
 		for (SqlCompletionType c : cursorContext.completionOptions)
 			switch (c) {
 			case table:
-				result.addAll(toCompletions(tableInfo, !addColumnDetails));
+				result.addAll(toCompletions(tableInfoResolver.listTables(), !addColumnDetails));
 				break;
 
 			case column:
 				if (cursorContext.underlyingTableName.isPresent()) {
-					Optional<TableInfo> i = findTableInfo(cursorContext.underlyingTableName.get());
+					Optional<TableInfo> i = tableInfoResolver.getTableInfo(cursorContext.underlyingTableName.get());
 					if (i.isPresent()) {
 						result.addAll(columnsToCompletions(i.get()));
 						break;
 					}
 				}
-				result.addAll(toCompletions(tableInfo, addColumnDetails));
+			//	result.addAll(toCompletions(tableInfoResolver.listTables(), addColumnDetails));
 				break;
 
 			case unknown:
@@ -102,14 +103,6 @@ public class QueryPatching {
 			}
 
 		return result;
-	}
-
-	private Optional<TableInfo> findTableInfo(String tableName) {
-		for (TableInfo i : tableInfo)
-			if (i.name.equals(StringUtil.stripQuotes(tableName)))
-				return Optional.of(i);
-
-		return Optional.absent();
 	}
 
 	private Completions toCompletions(List<TableInfo> tableInfo, boolean addDetails) {

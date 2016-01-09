@@ -33,8 +33,10 @@ import interfaces.SyntaxElementType;
 import manipulations.QueryPatching;
 import manipulations.results.RefactoredSql;
 import manipulations.results.ResolvedTableNames;
+import manipulations.results.TableInfoResolver;
 import manipulations.results.TableReference;
 import parser.FusionTablesSqlLexer;
+import util.Op;
 import util.StringUtil;
 
 public class QueryHandler extends Observable {
@@ -47,8 +49,26 @@ public class QueryHandler extends Observable {
 	private final boolean execute = !preview;
 	private final List<TableInfo> tableInfo = new LinkedList<TableInfo>();
 	private final Map<String, TableInfo> tableNameToTableInfo = new HashMap<String, TableInfo>();
+	private final Map<String, TableInfo> exteranlTableIdToTableInfo = new HashMap<String, TableInfo>();
+	private final List<String> inexistingExternalTableIds = new ArrayList<String>();
+
 	private TableNameToIdMapper tableNameToIdMapper;
 	private final ClientSettings settings;
+
+	private final TableInfoResolver tableInfoResolver = new TableInfoResolver() {
+
+		@Override
+		public Optional<TableInfo> getTableInfo(String nameOrId) {
+			loadTableCaches(false);
+			return getTableInfoAsOptional(nameOrId);
+		}
+
+		@Override
+		public List<TableInfo> listTables() {
+			loadTableCaches(false);
+			return tableInfo;
+		}
+	};
 
 	public QueryHandler(Logging logger, Connector connector, ClientSettings settings) {
 		Check.notNull(logger);
@@ -58,7 +78,6 @@ public class QueryHandler extends Observable {
 		this.settings = settings;
 	}
 
-	
 	public void reset(Dictionary<String, String> connectionInfo) {
 		connector.reset(connectionInfo);
 		reloadTableList();
@@ -69,16 +88,102 @@ public class QueryHandler extends Observable {
 	}
 
 	private QueryManipulator createManipulator(String query) {
-		return new QueryManipulator(loadTableCaches(false), tableNameToIdMapper, logger, query);
+		return new QueryManipulator(tableInfoResolver, tableNameToIdMapper, logger, query);
 	}
 
 	private void reloadTableList() {
 		loadTableCaches(reload);
 	}
-	
-	private TableInfo getTableInfo(String tableName) {
+
+	private static int lengthTableId = 41;
+
+	private Optional<TableReference> resolveTableReferenceInQuery(NameRecognitionTable tableRecognized) {
+		if (!tableRecognized.TableName().isPresent())
+			return Optional.absent();
+
+		Optional<TableInfo> maybeInfo = getTableInfoAsOptional(tableRecognized.TableName().get());
+		if (!maybeInfo.isPresent())
+			return Optional.absent();
+
+		TableInfo info = maybeInfo.get();
+		return Optional
+				.of(new TableReference(info.name, tableRecognized.TableAlias(), info.id, getColumnNames(info.columns)));
+	}
+
+	private Optional<TableInfo> getTableInfoAsOptional(String tableName) {
+		return Optional.fromNullable(resolveTableInfo(tableName));
+	}
+
+	private TableInfo resolveTableInfo(String tableName) {
 		loadTableCaches(false);
-		return tableNameToTableInfo.get(StringUtil.stripQuotes(tableName));
+		TableInfo result = tableNameToTableInfo.get(StringUtil.stripQuotes(tableName));
+
+		if (result == null)
+			result = resolveExternalTable(tableName).orNull();
+
+		return result;
+	}
+
+	private Optional<TableInfo> resolveExternalTable(String tableId) {
+		if (tableId.length() < Const.LEN_TABLEID)
+			return Optional.absent();
+		
+		Optional<TableInfo> result = probeCachedExternalTables(tableId);
+		if (result.isPresent())
+			return result;
+
+		if (probeInexistingExternaTables(tableId))
+			return Optional.absent();
+
+		return probeExternalTable(tableId);
+	}
+
+	private boolean probeInexistingExternaTables(String tableId) {
+		return inexistingExternalTableIds.indexOf(tableId) >= 0;
+	}
+
+	private Optional<TableInfo> probeCachedExternalTables(String tableId) {
+		return Optional.fromNullable(exteranlTableIdToTableInfo.get(tableId));
+	}
+
+	private Optional<TableInfo> probeExternalTable(String tableId) {
+		Optional<TableInfo> result;
+
+		logger.Info("probing for external table " + tableId);
+		QueryResult queryResult = hdlQuery(StatementType.DESCRIBE, String.format("describe %s;", tableId), execute);
+
+		if (queryResult.message.isPresent())
+			logger.Info(queryResult.message.get());
+
+		if (!queryResult.data.isPresent()) {
+			inexistingExternalTableIds.add(tableId);
+			result = Optional.absent();
+		} else {
+			TableInfo tableInfo = createTableInfo(tableId, queryResult.data.get());
+			exteranlTableIdToTableInfo.put(tableId, tableInfo);
+			result = Optional.of(tableInfo);
+		}
+		return result;
+	}
+
+	private final static int idxName = 1;
+	private final static int idxType = 2;
+	private final static int countResultColumns = 3;
+	private TableInfo createTableInfo(String tableId, TableModel tableModel) {
+		if (tableModel.getRowCount() == 0)
+			return null;
+		Check.isTrue(tableModel.getColumnCount() == countResultColumns);
+
+		List<ColumnInfo> columns = new LinkedList<ColumnInfo>();
+		for (int i = 0; i < tableModel.getRowCount(); i++)
+			columns.add(new ColumnInfo(getStringValueAt(tableModel, i, idxName),
+					getStringValueAt(tableModel, i, idxType), ""));
+
+		return new TableInfo(tableId, tableId, "", columns);
+	}
+
+	private String getStringValueAt(TableModel m, int rowIndex, int columnIndex) {
+		return (String) m.getValueAt(rowIndex, columnIndex);
 	}
 
 	private synchronized List<TableInfo> loadTableCaches(boolean reload) {
@@ -104,8 +209,8 @@ public class QueryHandler extends Observable {
 	public TableModel getTableInfo() {
 
 		Vector<String> columns = new Vector<String>();
-		columns.add("Id");
-		columns.add("Name");
+		columns.add("table id");
+		columns.add("name");
 
 		Vector<Vector<String>> rows = new Vector<Vector<String>>();
 
@@ -130,9 +235,9 @@ public class QueryHandler extends Observable {
 		Check.notNull(info);
 
 		Vector<String> columns = new Vector<String>();
-		columns.add("Column name");
-		columns.add("Datatype");
-	
+		columns.add("column name");
+		columns.add("type");
+
 		Vector<Vector<String>> rows = new Vector<Vector<String>>();
 
 		for (ColumnInfo i : info.columns) {
@@ -160,16 +265,16 @@ public class QueryHandler extends Observable {
 		return packQueryResult(msg);
 	}
 
-	private QueryResult hdlQuery(StatementType statementType, String query, QueryManipulator ftr, boolean preview) {
+	private QueryResult hdlQuery(StatementType statementType, String query, boolean preview) {
 		RefactoredSql r = createManipulator(query).refactorQuery();
 
 		String prepared = r.refactored;
-		if (statementType != StatementType.DESCRIBE)
+		if (! Op.in(statementType,  StatementType.DESCRIBE, StatementType.SHOW))
 			prepared = addLimit(prepared);
-	
+
 		if (r.problemsEncountered.isPresent())
 			return packQueryResult(r.problemsEncountered.get());
-		
+
 		else if (preview)
 			return packQueryResult(prepared);
 		else
@@ -218,27 +323,30 @@ public class QueryHandler extends Observable {
 				return hdlAlterTable(ftr, execute);
 
 			case SELECT:
-				return hdlQuery(ftr.statementType, query, ftr, execute);
+				return hdlQuery(ftr.statementType, query, execute);
 
-//			case INSERT:
-//				return hdlQuery(query, ftr, preview);
-//
-//			case UPDATE:
-//				return hdlQuery(query, ftr, preview);
-//
-//			case DELETE:
-//				return hdlQuery(query, ftr, preview);
+			// case INSERT:
+			// return hdlQuery(query, ftr, preview);
+			//
+			// case UPDATE:
+			// return hdlQuery(query, ftr, preview);
+			//
+			// case DELETE:
+			// return hdlQuery(query, ftr, preview);
 
 			case CREATE_VIEW:
-				return hdlQuery(ftr.statementType, query, ftr, execute);
+				return hdlQuery(ftr.statementType, query, execute);
 
 			case DROP:
 				return hdlDropTable(ftr, execute);
 
 			case DESCRIBE:
-				return hdlQuery(ftr.statementType, query, ftr, execute);
-				//return hdlDescribeTable(query, execute);
+				return hdlQuery(ftr.statementType, query, execute);
 
+			case SHOW:
+				return hdlQuery(ftr.statementType, query, execute);
+
+				
 			default:
 				return packQueryResult("Statement not covered: " + query);
 			}
@@ -249,29 +357,34 @@ public class QueryHandler extends Observable {
 
 	}
 
+	private static QueryResult tableNotFound = packQueryResult("table not found");
+
 	private QueryResult hdlDescribeTable(String query, boolean preview) {
 		if (preview)
 			return packQueryResult(query);
-		
-		Optional<String> val = createManipulator(query).getCursorContext(query.trim().length() - 2).underlyingTableName;
-		TableInfo info = null;
-		if (val.isPresent())
-			info = getTableInfo(val.get());
 
+		QueryManipulator m = createManipulator(query);
+		Optional<String> val = m.getCursorContext(query.trim().length() - 2).underlyingTableName;
+
+		if (!val.isPresent())
+			return tableNotFound;
+
+		TableInfo info = null;
+		info = resolveTableInfo(val.get());
 		if (info != null)
 			return packQueryResult(getColumnInfo(info));
 		else
-			return packQueryResult("table not found");
+			return tableNotFound;
 	}
 
-	private QueryResult packQueryResult(String msg) {
+	private static QueryResult packQueryResult(String msg) {
 		return new QueryResult(HttpStatus.SC_BAD_REQUEST, null, msg);
 	}
 
 	private QueryResult packQueryResult(TableModel model) {
 		return new QueryResult(HttpStatus.SC_OK, model, null);
 	}
-	
+
 	public String previewExecutedSql(String query) {
 		QueryManipulator ftr = createManipulator(query);
 
@@ -281,26 +394,30 @@ public class QueryHandler extends Observable {
 			return hdlAlterTable(ftr, preview).message.or("");
 
 		case SELECT:
-			return hdlQuery(ftr.statementType, query, ftr, preview).message.or("");
+			return hdlQuery(ftr.statementType, query, preview).message.or("");
 
 		case INSERT:
-			return hdlQuery(ftr.statementType, query, ftr, preview).message.or("");
+			return hdlQuery(ftr.statementType, query, preview).message.or("");
 
 		case UPDATE:
-			return hdlQuery(ftr.statementType, query, ftr, preview).message.or("");
+			return hdlQuery(ftr.statementType, query, preview).message.or("");
 
 		case DELETE:
-			return hdlQuery(ftr.statementType, query, ftr, preview).message.or("");
+			return hdlQuery(ftr.statementType, query, preview).message.or("");
 
 		case CREATE_VIEW:
-			return hdlQuery(ftr.statementType, query, ftr, preview).message.or("");
+			return hdlQuery(ftr.statementType, query, preview).message.or("");
 
 		case DROP:
 			return hdlDropTable(ftr, preview).message.or("");
 
 		case DESCRIBE:
-			return hdlDescribeTable(query, preview).message.or("");
+			return hdlQuery(ftr.statementType, query, preview).message.or("");
 
+		case SHOW:
+			return hdlQuery(ftr.statementType, query, preview).message.or("");
+			
+			
 		default:
 			return "Statement not covered: " + query;
 		}
@@ -326,11 +443,9 @@ public class QueryHandler extends Observable {
 	}
 
 	private List<SyntaxElement> getSyntaxElements(CursorContextListener l) {
-		// Check.isTrue(l.tableList.size() <= 1);
-
 		Optional<TableReference> tableReference;
 		if (l.tableList.size() >= 1)
-			tableReference = resolveTable(l.tableList.get(l.tableList.size() - 1));
+			tableReference = resolveTableReferenceInQuery(l.tableList.get(l.tableList.size() - 1));
 		else
 			tableReference = Optional.absent();
 
@@ -385,38 +500,20 @@ public class QueryHandler extends Observable {
 					s.hasSemanticError() ? "<bad>" : "ok"));
 	}
 
-	private static int lengthTableId = 41;
-
-	private Optional<TableReference> resolveTable(NameRecognitionTable tableRecognized) {
-
-		if (tableRecognized.TableName().isPresent()) {
-			String tableName = tableRecognized.TableName().get();
-			Optional<String> id = resolveTableId(tableName);
-
-			if (nameIsActuallyAnId(tableName, id)) {
-				Optional<String> maybeTableName = tableNameToIdMapper.nameForId(tableName);
-				if (maybeTableName.isPresent()) {
-					id = Optional.of(tableName);
-					tableName = maybeTableName.get();
-				}
-			}
-
-			if (id.isPresent()) {
-				TableInfo t = getTableInfo(tableName);
-				Check.notNull(t);
-				return Optional.of(new TableReference(tableName, tableRecognized.TableAlias(), id.get(),
-						getColumnNames(t.columns)));
-			}
-		}
-		return Optional.absent();
-	}
-
 	private boolean nameIsActuallyAnId(String tableName, Optional<String> id) {
 		return !id.isPresent() && tableName.length() == lengthTableId;
 	}
 
 	private Optional<String> resolveTableId(String tableName) {
-		return tableNameToIdMapper.idForName(tableName);
+		Optional<String> resultId = tableNameToIdMapper.idForName(tableName);
+		if (resultId.isPresent())
+			return resultId;
+
+		Optional<TableInfo> info = getTableInfoAsOptional(tableName);
+		if (info.isPresent())
+			return Optional.of(info.get().id);
+		else
+			return Optional.absent();
 	}
 
 	private List<String> getColumnNames(List<ColumnInfo> columns) {
