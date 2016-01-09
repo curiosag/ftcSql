@@ -40,6 +40,7 @@ public class QueryManipulator {
 		statementTypes.put("SELECT", StatementType.SELECT);
 		statementTypes.put("UPDATE", StatementType.UPDATE);
 		statementTypes.put("DROP", StatementType.DROP);
+		statementTypes.put("DESCRIBE", StatementType.DESCRIBE);
 	}
 	
 	private class DiggedAliases extends ParseResult {

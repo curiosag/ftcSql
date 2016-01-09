@@ -44,19 +44,19 @@ public class QueryPatching {
 		String result = query;
 		boolean bareSelect = bareSelect(query);
 
-		String value = Completions.patchFromCompletion(completion);
+		String patch = completion.getPatch();
 		Optional<OrderedIntTuple> boundaries = cursorContext.boundaries;
 
 		if (completion.completionType == SqlCompletionType.columnConditionExprAfterColumn)
-			result = appendCompletion(value.replace("{column_name}", ""));
+			result = appendCompletion(patch.replace("{column_name}", ""));
 		else {
 			if (boundaries.isPresent()) {
-				result = StringUtil.replace(query, boundaries.get(), value);
+				result = StringUtil.replace(query, boundaries.get(), patch);
 				
-				int offsetNewCursor = value.length() - 1 - (boundaries.get().hi() - boundaries.get().lo());
+				int offsetNewCursor = patch.length() - 1 - (boundaries.get().hi() - boundaries.get().lo());
 				setNewCursorPosition(cursorPosition + offsetNewCursor);
 			} else
-				result = appendCompletion(value);
+				result = appendCompletion(patch);
 		}
 
 		if (bareSelect && completion.completionType == SqlCompletionType.column && completion.parent != null)
@@ -106,7 +106,7 @@ public class QueryPatching {
 
 	private Optional<TableInfo> findTableInfo(String tableName) {
 		for (TableInfo i : tableInfo)
-			if (i.name.equals(tableName))
+			if (i.name.equals(StringUtil.stripQuotes(tableName)))
 				return Optional.of(i);
 
 		return Optional.absent();

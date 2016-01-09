@@ -41,7 +41,6 @@ public class QueryHandler extends Observable {
 	private boolean debug = Const.debugQueryHandler;
 
 	private boolean reload = true;
-	public final boolean ADD_DETAILS = true;
 	private final Logging logger;
 	private final Connector connector;
 	private final boolean preview = true;
@@ -58,32 +57,31 @@ public class QueryHandler extends Observable {
 		this.connector = connector;
 		this.settings = settings;
 	}
+
 	
-	public void reset(Dictionary<String, String> connectionInfo) 
-	{
+	public void reset(Dictionary<String, String> connectionInfo) {
 		connector.reset(connectionInfo);
 		reloadTableList();
 	};
-	
-	
+
 	private void log(String msg) {
 		logger.Info(msg);
 	}
 
 	private QueryManipulator createManipulator(String query) {
-		return new QueryManipulator(internalGetTableInfo(false), tableNameToIdMapper, logger, query);
+		return new QueryManipulator(loadTableCaches(false), tableNameToIdMapper, logger, query);
 	}
 
 	private void reloadTableList() {
-		internalGetTableInfo(reload);
+		loadTableCaches(reload);
 	}
-
+	
 	private TableInfo getTableInfo(String tableName) {
-		internalGetTableInfo(false);
-		return tableNameToTableInfo.get(tableName);
+		loadTableCaches(false);
+		return tableNameToTableInfo.get(StringUtil.stripQuotes(tableName));
 	}
 
-	private synchronized List<TableInfo> internalGetTableInfo(boolean reload) {
+	private synchronized List<TableInfo> loadTableCaches(boolean reload) {
 		if (tableInfo.isEmpty() || reload) {
 			tableInfo.clear();
 			tableInfo.addAll(connector.getTableInfo());
@@ -99,55 +97,26 @@ public class QueryHandler extends Observable {
 		tableNameToIdMapper = new TableNameToIdMapper(tableInfo);
 	}
 
-	public List<TableInfo> getTableList(boolean addDetails) {
-		List<TableInfo> info = internalGetTableInfo(!reload);
-		List<TableInfo> result;
-		if (addDetails)
-			result = info;
-		else
-			result = flatten(info);
-		return result;
+	public List<TableInfo> getTableList() {
+		return loadTableCaches(!reload);
 	}
 
-	private List<TableInfo> flatten(List<TableInfo> info) {
-		List<ColumnInfo> noColumns = new ArrayList<ColumnInfo>();
-		List<TableInfo> result = new ArrayList<TableInfo>();
-		for (TableInfo t : info)
-			result.add(new TableInfo(t.name, t.id, t.description, noColumns));
-		return result;
-	}
-
-	public String _getTableInfo() {
-		StringBuilder sb = new StringBuilder();
-		List<String> names = new ArrayList<String>();
-
-		for (TableInfo i : getTableList(ADD_DETAILS)) {
-			if (names.contains(i.name))
-				log("Duplicate table name: '" + i.name + "' name to ID substitution may fail.");
-
-			sb.append("ID: " + i.id + " " + "  NAME: " + i.name + "\n");
-		}
-
-		return sb.toString();
-	}
-	
 	public TableModel getTableInfo() {
-		
+
 		Vector<String> columns = new Vector<String>();
 		columns.add("Id");
 		columns.add("Name");
-		
+
 		Vector<Vector<String>> rows = new Vector<Vector<String>>();
-		
-				
+
 		List<String> names = new ArrayList<String>();
 
-		for (TableInfo i : getTableList(ADD_DETAILS)) {
+		for (TableInfo i : getTableList()) {
 			if (names.contains(i.name))
 				log("Duplicate table name: '" + i.name + "' name to ID substitution may fail.");
-			
+
 			names.add(i.name);
-			
+
 			Vector<String> row = new Vector<String>();
 			row.add(i.id);
 			row.add(i.name);
@@ -157,7 +126,26 @@ public class QueryHandler extends Observable {
 		return new DefaultTableModel(rows, columns);
 	}
 
-	private String hdlAlterTable(QueryManipulator ftr, boolean preview) {
+	public TableModel getColumnInfo(TableInfo info) {
+		Check.notNull(info);
+
+		Vector<String> columns = new Vector<String>();
+		columns.add("Column name");
+		columns.add("Datatype");
+	
+		Vector<Vector<String>> rows = new Vector<Vector<String>>();
+
+		for (ColumnInfo i : info.columns) {
+			Vector<String> row = new Vector<String>();
+			row.add(i.name);
+			row.add(i.type);
+			rows.add(row);
+		}
+
+		return new DefaultTableModel(rows, columns);
+	}
+
+	private QueryResult hdlAlterTable(QueryManipulator ftr, boolean preview) {
 		ResolvedTableNames id = ftr.getAlterTableIdentifiers();
 
 		String msg;
@@ -169,38 +157,44 @@ public class QueryHandler extends Observable {
 			msg = connector.renameTable(id.idFrom.get(), id.nameTo);
 			onStructureChanged();
 		}
-		return msg;
+		return packQueryResult(msg);
 	}
 
-	private QueryResult hdlQuery(String query, QueryManipulator ftr, boolean preview) {
+	private QueryResult hdlQuery(StatementType statementType, String query, QueryManipulator ftr, boolean preview) {
 		RefactoredSql r = createManipulator(query).refactorQuery();
+
+		String prepared = r.refactored;
+		if (statementType != StatementType.DESCRIBE)
+			prepared = addLimit(prepared);
+	
 		if (r.problemsEncountered.isPresent())
 			return packQueryResult(r.problemsEncountered.get());
+		
 		else if (preview)
-			return packQueryResult(addLimit(r.refactored));
+			return packQueryResult(prepared);
 		else
-			return connector.fetch(addLimit(r.refactored));
+			return connector.fetch(prepared);
 	}
 
 	private String addLimit(String refactored) {
 		String q = refactored.toUpperCase();
 		if (q.indexOf("LIMIT") >= 0)
 			return refactored;
-		
+
 		refactored = refactored.replace(";", "");
 		if (q.indexOf("OFFSET") < 0)
 			refactored = refactored + "\nOFFSET 0";
-		
+
 		refactored = refactored + String.format("\nLIMIT %d;", settings.defaultQueryLimit);
-		
+
 		return refactored;
 	}
 
-	private String hdlDropTable(QueryManipulator ftr, boolean preview) {
+	private QueryResult hdlDropTable(QueryManipulator ftr, boolean preview) {
 		ResolvedTableNames id = ftr.getTableNameToDrop();
 		String msg;
 		if (id.problemsEncountered.isPresent())
-			return id.problemsEncountered.get();
+			msg = id.problemsEncountered.get();
 		else if (preview)
 			msg = "Api call delete, table id: " + id.idFrom.get();
 		else
@@ -211,7 +205,7 @@ public class QueryHandler extends Observable {
 			} catch (IOException e) {
 				msg = e.getMessage();
 			}
-		return msg;
+		return packQueryResult(msg);
 	}
 
 	public QueryResult getQueryResult(String query) {
@@ -221,25 +215,29 @@ public class QueryHandler extends Observable {
 			QueryManipulator ftr = createManipulator(query);
 			switch (ftr.statementType) {
 			case ALTER:
-				return packQueryResult(hdlAlterTable(ftr, execute));
+				return hdlAlterTable(ftr, execute);
 
 			case SELECT:
-				return hdlQuery(query, ftr, execute);
+				return hdlQuery(ftr.statementType, query, ftr, execute);
 
-			case INSERT:
-				return hdlQuery(query, ftr, preview);
-				
-			case UPDATE:
-				return hdlQuery(query, ftr, preview);
-				
-			case DELETE:
-				return hdlQuery(query, ftr, preview);					
-				
+//			case INSERT:
+//				return hdlQuery(query, ftr, preview);
+//
+//			case UPDATE:
+//				return hdlQuery(query, ftr, preview);
+//
+//			case DELETE:
+//				return hdlQuery(query, ftr, preview);
+
 			case CREATE_VIEW:
-				return hdlQuery(query, ftr, execute);
+				return hdlQuery(ftr.statementType, query, ftr, execute);
 
 			case DROP:
-				return packQueryResult(hdlDropTable(ftr, execute));
+				return hdlDropTable(ftr, execute);
+
+			case DESCRIBE:
+				return hdlQuery(ftr.statementType, query, ftr, execute);
+				//return hdlDescribeTable(query, execute);
 
 			default:
 				return packQueryResult("Statement not covered: " + query);
@@ -251,35 +249,57 @@ public class QueryHandler extends Observable {
 
 	}
 
-	private QueryResult packQueryResult(String msg) {
-		return new QueryResult(HttpStatus.SC_ACCEPTED, null, msg);
+	private QueryResult hdlDescribeTable(String query, boolean preview) {
+		if (preview)
+			return packQueryResult(query);
+		
+		Optional<String> val = createManipulator(query).getCursorContext(query.trim().length() - 2).underlyingTableName;
+		TableInfo info = null;
+		if (val.isPresent())
+			info = getTableInfo(val.get());
+
+		if (info != null)
+			return packQueryResult(getColumnInfo(info));
+		else
+			return packQueryResult("table not found");
 	}
 
+	private QueryResult packQueryResult(String msg) {
+		return new QueryResult(HttpStatus.SC_BAD_REQUEST, null, msg);
+	}
+
+	private QueryResult packQueryResult(TableModel model) {
+		return new QueryResult(HttpStatus.SC_OK, model, null);
+	}
+	
 	public String previewExecutedSql(String query) {
 		QueryManipulator ftr = createManipulator(query);
 
 		switch (ftr.statementType) {
 
 		case ALTER:
-			return hdlAlterTable(ftr, preview);
+			return hdlAlterTable(ftr, preview).message.or("");
 
 		case SELECT:
-			return hdlQuery(query, ftr, preview).message.or("");
-			
+			return hdlQuery(ftr.statementType, query, ftr, preview).message.or("");
+
 		case INSERT:
-			return hdlQuery(query, ftr, preview).message.or("");
-			
+			return hdlQuery(ftr.statementType, query, ftr, preview).message.or("");
+
 		case UPDATE:
-			return hdlQuery(query, ftr, preview).message.or("");
-			
+			return hdlQuery(ftr.statementType, query, ftr, preview).message.or("");
+
 		case DELETE:
-			return hdlQuery(query, ftr, preview).message.or("");	
+			return hdlQuery(ftr.statementType, query, ftr, preview).message.or("");
 
 		case CREATE_VIEW:
-			return hdlQuery(query, ftr, preview).message.or("");
+			return hdlQuery(ftr.statementType, query, ftr, preview).message.or("");
 
 		case DROP:
-			return hdlDropTable(ftr, preview);
+			return hdlDropTable(ftr, preview).message.or("");
+
+		case DESCRIBE:
+			return hdlDescribeTable(query, preview).message.or("");
 
 		default:
 			return "Statement not covered: " + query;
@@ -291,24 +311,22 @@ public class QueryHandler extends Observable {
 		return createManipulator(query).getPatcher(cursorPos);
 	}
 
-	
-	
 	private String lastQuery = null;
 	List<SyntaxElement> lastHighlighting = null;
-	
+
 	public List<SyntaxElement> getHighlighting(String query) {
 		if (lastHighlighting != null && StringUtil.nullableEqual(query, lastQuery))
 			return lastHighlighting;
-		
+
 		List<SyntaxElement> result = getSyntaxElements(createManipulator(query).getCursorContextListener(0));
 		lastQuery = query;
 		lastHighlighting = result;
-		
+
 		return result;
 	}
 
 	private List<SyntaxElement> getSyntaxElements(CursorContextListener l) {
-		//Check.isTrue(l.tableList.size() <= 1);
+		// Check.isTrue(l.tableList.size() <= 1);
 
 		Optional<TableReference> tableReference;
 		if (l.tableList.size() >= 1)
@@ -349,14 +367,12 @@ public class QueryHandler extends Observable {
 	private SyntaxElementType getIrregularType(Token t) {
 		SyntaxElementType type = SyntaxElementType.unknown;
 
-		if (t.getChannel() == FusionTablesSqlLexer.WHITESPACE)
-		{
+		if (t.getChannel() == FusionTablesSqlLexer.WHITESPACE) {
 			if (t.getText().equals("\n"))
 				type = SyntaxElementType.newline;
 			else
 				type = SyntaxElementType.whitespace;
-		}
-		else if (t.getChannel() == FusionTablesSqlLexer.HIDDEN)
+		} else if (t.getChannel() == FusionTablesSqlLexer.HIDDEN)
 			type = SyntaxElementType.comment;
 
 		return type;

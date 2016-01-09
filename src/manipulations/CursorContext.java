@@ -153,7 +153,11 @@ public class CursorContext {
 		if (endOfStatement(c) && findSyntaxElement("FROM")) {
 			boolean group = findSyntaxElement("GROUP");
 			boolean order = findSyntaxElement("ORDER");
+			boolean where = findSyntaxElement("WHERE");
 
+			if (!group && !order && ! where) 
+				result.add(SqlCompletionType.keywordWhere);
+			
 			if (!group && !order) {
 				result.add(SqlCompletionType.groupBy);
 				result.add(SqlCompletionType.orderBy);

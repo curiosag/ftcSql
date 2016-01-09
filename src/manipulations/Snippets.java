@@ -63,10 +63,10 @@ public class Snippets {
 		if (extended_dml) {
 			result.addSnippet(SqlCompletionType.ftSql, "update single", "UPDATE ${t} SET ${c} = ${value};");
 			result.addSnippet(SqlCompletionType.ftSql, "update multi",
-					"UPDATE ${t} SET ${c1} = ${value1}, ${c2} = ${value2}; ");
-						
+					"UPDATE ${t} SET ${c1} = ${value1}, ${c2} = ${value2}; ");	
 		}
 		
+		result.addSnippet(SqlCompletionType.ftSql, "describe table", "DESCRIBE ${t};");
 		return result;
 	}
 		
@@ -122,6 +122,7 @@ public class Snippets {
 		completionMap.put(SqlCompletionType.aggregate, getAggregateExpressions());
 		completionMap.put(SqlCompletionType.groupBy, getGroupByExpressions());
 		completionMap.put(SqlCompletionType.orderBy, getOrderByExpressions());
+		completionMap.put(SqlCompletionType.keywordWhere, Completions.create(noBoundaries, SqlCompletionType.keywordWhere, "where - keyword", "WHERE "));
 	}
 	
 	public static Snippets instance()
