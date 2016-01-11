@@ -33,6 +33,7 @@ import util.StringUtil;
 public class QueryManipulator {
 
 	private static Map<String, StatementType> statementTypes = new HashMap<String, StatementType>();
+
 	static {
 		statementTypes.put("ALTER", StatementType.ALTER);
 		statementTypes.put("CREATE", StatementType.CREATE_VIEW);
@@ -44,7 +45,7 @@ public class QueryManipulator {
 		statementTypes.put("DESCRIBE", StatementType.DESCRIBE);
 		statementTypes.put("SHOW", StatementType.SHOW);
 	}
-	
+
 	private class DiggedAliases extends ParseResult {
 		Map<String, String> aliases;
 
@@ -78,7 +79,7 @@ public class QueryManipulator {
 	private static StatementType getStatementType(String query) {
 		// avoids the xpath listener complications and is more efficient
 		query = query.trim().toUpperCase();
-		for (Entry<String, StatementType> e : statementTypes.entrySet()) 
+		for (Entry<String, StatementType> e : statementTypes.entrySet())
 			if (query.startsWith(e.getKey()))
 				return e.getValue();
 
@@ -209,7 +210,8 @@ public class QueryManipulator {
 	public CursorContextListener getCursorContextListener(int cursorPosition) {
 		Stuff stuff = Util.getParser(query);
 
-		CursorContextListener cursorContextListener = new CursorContextListener(cursorPosition, stuff.parser, stuff.tokenStream);
+		CursorContextListener cursorContextListener = new CursorContextListener(cursorPosition, stuff.parser,
+				stuff.tokenStream);
 		stuff.parser.setErrorHandler(new RecognitionErrorStrategy(cursorContextListener));
 		stuff.lexer.removeErrorListeners();
 		stuff.parser.removeErrorListeners();
@@ -227,30 +229,30 @@ public class QueryManipulator {
 		return false;
 	}
 
-	private int moveToLastButOneBlank(String query, int cursorPos)
-	{
-		if (! cursorInValidRange(query, cursorPos) || cursorPos < 1 || query.length() < 2)
+	private int moveToLastButOneBlank(String query, int cursorPos) {
+		if (!cursorInValidRange(query, cursorPos) || cursorPos < 1 || query.length() < 2)
 			return cursorPos;
-		
-		while (cursorPos >= 1 && query.charAt(cursorPos) == ' ' && query.charAt(cursorPos - 1) == ' ') 
-			cursorPos --;
-			
+
+		if (query.charAt(cursorPos) == ' ' && query.charAt(cursorPos - 1) == ' ')
+			while (cursorPos >= 2 && query.charAt(cursorPos - 2) == ' ')
+				cursorPos--;
+
 		return cursorPos;
 	}
 
 	private boolean cursorInValidRange(String query, int cursorPos) {
 		return cursorPos > 0 && cursorPos < query.length();
 	}
-	
+
 	private int placeIntoValidTokenRange(String query, int cursorPos) {
 		if (StringUtil.emptyOrNull(query))
 			return cursorPos;
-		
+
 		cursorPos = moveToLastButOneBlank(query, cursorPos);
-		
+
 		if (cursorInValidRange(query, cursorPos) && !symBoundary(query.charAt(cursorPos - 1)))
 			cursorPos--;
-		
+
 		return cursorPos;
 	}
 
@@ -262,9 +264,9 @@ public class QueryManipulator {
 				.instance(getCursorContextListener(placeIntoValidTokenRange(query, cursorPosition)));
 		return result;
 	}
-	
+
 	public QueryPatching getPatcher(int cursorPosition) {
-		
+
 		return new QueryPatching(tableInfoResolver, getCursorContext(cursorPosition), cursorPosition, query);
 	}
 

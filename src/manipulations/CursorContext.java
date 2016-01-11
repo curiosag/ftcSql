@@ -16,11 +16,12 @@ import gc.common.structures.Tuple;
 import interfaces.SqlCompletionType;
 import interfaces.SyntaxElement;
 import parser.Ctx;
+import uglySmallThings.Const;
 import util.CollectionUtil;
 import util.Op;
 
 public class CursorContext {
-	private final boolean debug = false;
+	private final boolean debug = Const.debugCursorContext;
 	private final CursorContextListener cursorContextListener;
 
 	public final int cursorIndex;

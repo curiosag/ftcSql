@@ -91,8 +91,8 @@ public class Snippets {
 		result.addSnippet(t, "not equal to", "${c} NOT EQUAL TO '${value}'${cursor}");
 
 		if (t == SqlCompletionType.columnConditionExpr){
-			result.addSnippet(t, "geo condition circle", "ST_INTERSECTS(${c}, CIRCLE(LATLNG(${number1}, ${number2}), ${number3})${cursor} ");
-			result.addSnippet(t, "geo condition rectangle", "ST_INTERSECTS(${c}, RECTANGLE(LATLNG(${number1}, ${number2}), LATLNG(${number3}, ${number4})))${cursor} ");
+			result.addSnippet(t, "st_intersects circle", "ST_INTERSECTS(${c}, CIRCLE(LATLNG(${number1}, ${number2}), ${number3})${cursor} ");
+			result.addSnippet(t, "st_intersects rectangle", "ST_INTERSECTS(${c}, RECTANGLE(LATLNG(${number1}, ${number2}), LATLNG(${number3}, ${number4})))${cursor} ");
 		}
 			
 		return result;

@@ -76,8 +76,10 @@ public class QueryPatching {
 	private final static boolean addColumnDetails = true;
 
 	public Completions getCompletions() {
-		Completions result = new Completions(cursorContext.boundaries);
-
+		Completions result = new Completions(cursorContext.boundaries);	
+		
+		final boolean isExprContext = cursorContext.completionOptions.indexOf(SqlCompletionType.columnConditionExpr) >= 0;
+		
 		for (SqlCompletionType c : cursorContext.completionOptions)
 			switch (c) {
 			case table:
@@ -85,14 +87,11 @@ public class QueryPatching {
 				break;
 
 			case column:
-				if (cursorContext.underlyingTableName.isPresent()) {
+				if (! isExprContext && cursorContext.underlyingTableName.isPresent()) {
 					Optional<TableInfo> i = tableInfoResolver.getTableInfo(cursorContext.underlyingTableName.get());
-					if (i.isPresent()) {
+					if (i.isPresent()) 
 						result.addAll(columnsToCompletions(i.get()));
-						break;
-					}
 				}
-			//	result.addAll(toCompletions(tableInfoResolver.listTables(), addColumnDetails));
 				break;
 
 			case unknown:
