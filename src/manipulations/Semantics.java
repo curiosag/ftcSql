@@ -34,29 +34,30 @@ public class Semantics {
 	public List<SyntaxElement> setSemanticAttributes(List<SyntaxElement> tokens) {
 
 		for (SyntaxElement e : tokens)
-			e.setSemanticError(! hasSemanticError(e));
+			e.setSemanticError(hasSemanticError(e));
 
 		return tokens;
 	}
 
 	private boolean hasSemanticError(SyntaxElement e) {
 		if (!Op.in(e.type, SyntaxElementType.columnName, SyntaxElementType.tableName))
-			return true;
+			return false;
 
 		if (!tableReference.isPresent())
-			return false;
+			return true;
+		
 		TableReference tableRef = tableReference.get();
 
+		String strippedValue = StringUtil.stripQuotes(e.value);
 		if (e.type == SyntaxElementType.columnName)
-			return findColumnName(StringUtil.peel(e.value, Const.quoteChar), tableRef.columnNames);
+			return ! findColumnName(strippedValue, tableRef.columnNames);
 		
 		// tableName may occur also in qualified column names as <tableName>.<columnName>
 		// where it also may be an alias or the table Id
 		if (e.type == SyntaxElementType.tableName)
-			return Op.in(e.value, tableRef.tableName, tableRef.tableAlias.or(""), tableRef.tableId);
+			return ! Op.in(strippedValue, tableRef.tableName, tableRef.tableAlias.or(""), tableRef.tableId);
 
-		return true;
-
+		return false;
 	}
 	
 	private boolean findColumnName(String value, List<String> columnNames) {

@@ -9,7 +9,6 @@ import com.google.common.base.Optional;
 
 import cg.common.check.Check;
 import structures.TableInfo;
-import util.StringUtil;
 public class TableNameToIdMapper {
 
 	private final Map<String, String> namesToIds;
@@ -33,12 +32,12 @@ public class TableNameToIdMapper {
 	}
 
 	public boolean isName(String identifier) {
-		return namesToIds.containsKey(StringUtil.stripQuotes(identifier));
+		return namesToIds.containsKey(identifier);
 	}
 
 	public Optional<String> idForName(String value) {
 		if (isName(value))
-			return Optional.of(namesToIds.get(StringUtil.stripQuotes(value)));
+			return Optional.of(namesToIds.get(value));
 		else
 			return Optional.absent();
 	}
@@ -57,7 +56,7 @@ public class TableNameToIdMapper {
 		if (isId(value))
 			result = Optional.of(value);
 		else
-			result = idForName(StringUtil.stripQuotes(value));
+			result = idForName(value);
 
 		return result;
 	}

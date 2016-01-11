@@ -5,7 +5,6 @@ import java.util.Map;
 
 import com.google.common.base.Optional;
 
-import cg.common.check.Check;
 import gc.common.structures.OrderedIntTuple;
 import interfaces.SqlCompletionType;
 import structures.Completions;
@@ -31,42 +30,42 @@ public class Snippets {
 	private Completions getAggregateExpressions() {
 		Completions result = new Completions(noBoundaries);
 
-		result.addSnippet(SqlCompletionType.aggregate, "sum", "SUM(${c})");
-		result.addSnippet(SqlCompletionType.aggregate, "count", "COUNT(${c})");
-		result.addSnippet(SqlCompletionType.aggregate, "average", "AVERAGE(${c})");
-		result.addSnippet(SqlCompletionType.aggregate, "maximum", "MAXIMUM(${c})");
-		result.addSnippet(SqlCompletionType.aggregate, "minimum", "MINIMUM(${c})");
+		result.addSnippet(SqlCompletionType.aggregate, "sum", "SUM(${c}${cursor})");
+		result.addSnippet(SqlCompletionType.aggregate, "count", "COUNT(${c}${cursor})");
+		result.addSnippet(SqlCompletionType.aggregate, "average", "AVERAGE(${c}${cursor})");
+		result.addSnippet(SqlCompletionType.aggregate, "maximum", "MAXIMUM(${c}${cursor})");
+		result.addSnippet(SqlCompletionType.aggregate, "minimum", "MINIMUM(${c}${cursor})");
 
 		return result;
 	}
 
 	/**
-	 * ${cursor} params aren't really what's needed here
-	 * every parameter starting with "c" is considered to be a column
-	 * triggering column retrieval in completions
+	 * every parameters starting with "c" are used for columns,
+	 * triggering column retrieval in completions, "t"s are for tables
 	 * @return
 	 */
 	private Completions getSqlStatementExpressions() {
 		Completions result = new Completions(noBoundaries);
 
-		result.addSnippet(SqlCompletionType.ftSql, "alter table", "ALTER TABLE ${t} RENAME TO ${name}; ");
-		result.addSnippet(SqlCompletionType.ftSql, "drop table", "DROP TABLE ${t}; ");
+		result.addSnippet(SqlCompletionType.ftSql, "alter table", "ALTER TABLE ${t} RENAME TO ${name}${cursor}; ");
+		result.addSnippet(SqlCompletionType.ftSql, "drop table", "DROP TABLE ${t}${cursor}; ");
+		 //${cursor} logic doesen't really work here, because it can't be placed after $t. first table gets chosen, then column
 		result.addSnippet(SqlCompletionType.ftSql, "select", "SELECT ${c} FROM ${t};");
-		result.addSnippet(SqlCompletionType.ftSql, "insert single", "INSERT INTO ${t} (${c}) \nVALUES (${value});");
+		result.addSnippet(SqlCompletionType.ftSql, "insert single", "INSERT INTO ${t} (${c}) \nVALUES (${value}${cursor});");
 		result.addSnippet(SqlCompletionType.ftSql, "insert multi",
-				"INSERT INTO ${t} (${c1}, ${c2}) \nVALUES (${value1}, ${value2});");
+				"INSERT INTO ${t} (${c1}, ${c2}) \nVALUES (${value1}, ${value2}${cursor});");
 		
 		result.addSnippet(SqlCompletionType.ftSql, "delete",
-				"DELETE FROM ${t} WHERE ${c}=${value}; ");
+				"DELETE FROM ${t} WHERE ${c}=${value}${cursor}; ");
 		result.addSnippet(SqlCompletionType.ftSql, "delete all",
-				"DELETE FROM ${t}; ");
+				"DELETE FROM ${t}${cursor}; ");
 		if (extended_dml) {
-			result.addSnippet(SqlCompletionType.ftSql, "update single", "UPDATE ${t} SET ${c} = ${value};");
+			result.addSnippet(SqlCompletionType.ftSql, "update single", "UPDATE ${t} SET ${c} = ${value}${cursor};");
 			result.addSnippet(SqlCompletionType.ftSql, "update multi",
-					"UPDATE ${t} SET ${c1} = ${value1}, ${c2} = ${value2}; ");	
+					"UPDATE ${t} SET ${c1} = ${value1}, ${c2} = ${value2}${cursor}; ");	
 		}
 		
-		result.addSnippet(SqlCompletionType.ftSql, "describe table", "DESCRIBE ${t};");
+		result.addSnippet(SqlCompletionType.ftSql, "describe table", "DESCRIBE ${t}${cursor};");
 		
 		return result;
 	}
@@ -74,26 +73,26 @@ public class Snippets {
 	private Completions getColumnConditionExpressions(SqlCompletionType t) {
 		Completions result = new Completions(noBoundaries);
 		
-		result.addSnippet(t, "=", "${c} = ${value} ");
-		result.addSnippet(t, ">", "${c} > ${value} ");
-		result.addSnippet(t, "<", "${c} < ${value} ");
-		result.addSnippet(t, ">=", "${c} => ${value} ");
-		result.addSnippet(t, "<=", "${c} <= ${value} ");
+		result.addSnippet(t, "=", "${c} = ${value}${cursor}");
+		result.addSnippet(t, ">", "${c} > ${value}${cursor} ");
+		result.addSnippet(t, "<", "${c} < ${value}${cursor} ");
+		result.addSnippet(t, ">=", "${c} => ${value}${cursor} ");
+		result.addSnippet(t, "<=", "${c} <= ${value}${cursor} ");
 
-		result.addSnippet(t, "in", "${c} IN('${value}', '${value}') ");
-		result.addSnippet(t, "between", "${c} BETWEEN '${value}' AND '${value}' ");
-		result.addSnippet(t, "like", "${c} LIKE '${value}' ");
-		result.addSnippet(t, "matches", "${c} MATCHES '${value}' ");
-		result.addSnippet(t, "starts with", "${c} STARTS WITH '${value}' ");
-		result.addSnippet(t, "ends with", "${c} ENDS WITH '${value}' ");
-		result.addSnippet(t, "contains", "${c} CONTAINS '${value}' ");
-		result.addSnippet(t, "contains ignoring case", "${c} CONTAINS IGNORING CASE '${value}' ");
-		result.addSnippet(t, "does not contain", "${c} DOES NOT CONTAIN '${value}' ");
-		result.addSnippet(t, "not equal to", "${c} NOT EQUAL TO '${value}' ");
+		result.addSnippet(t, "in", "${c} IN('${value1}', '${value2}')${cursor}");
+		result.addSnippet(t, "between", "${c} BETWEEN '${value1}' AND '${value2}'${cursor}");
+		result.addSnippet(t, "like", "${c} LIKE '${value}'${cursor}");
+		result.addSnippet(t, "matches", "${c} MATCHES '${value}'");
+		result.addSnippet(t, "starts with", "${c} STARTS WITH '${value}'${cursor}");
+		result.addSnippet(t, "ends with", "${c} ENDS WITH '${value}'${cursor}");
+		result.addSnippet(t, "contains", "${c} CONTAINS '${value}'${cursor}");
+		result.addSnippet(t, "contains ignoring case", "${c} CONTAINS IGNORING CASE '${value}'${cursor}");
+		result.addSnippet(t, "does not contain", "${c} DOES NOT CONTAIN '${value}'${cursor}");
+		result.addSnippet(t, "not equal to", "${c} NOT EQUAL TO '${value}'${cursor}");
 
 		if (t == SqlCompletionType.columnConditionExpr){
-			result.addSnippet(t, "geo condition circle", "ST_INTERSECTS(${c}, CIRCLE(LATLNG(${number}, ${number})), ${number}))) ");
-			result.addSnippet(t, "geo condition rectangle", "ST_INTERSECTS(${c}, RECTANGLE(LATLNG(${number}, ${number}), LATLNG(${number}, ${number}))) ");
+			result.addSnippet(t, "geo condition circle", "ST_INTERSECTS(${c}, CIRCLE(LATLNG(${number1}, ${number2}), ${number3})${cursor} ");
+			result.addSnippet(t, "geo condition rectangle", "ST_INTERSECTS(${c}, RECTANGLE(LATLNG(${number1}, ${number2}), LATLNG(${number3}, ${number4})))${cursor} ");
 		}
 			
 		return result;
@@ -102,9 +101,9 @@ public class Snippets {
 	private Completions getOrderByExpressions() {
 		Completions result =  new Completions(noBoundaries);
 		SqlCompletionType t = SqlCompletionType.orderBy;
-		result.addSnippet(t, "order by ", "ORDER BY ${c} ");
-		result.addSnippet(t, "order by, descending", "ORDER BY ${c} DESC");
-		result.addSnippet(t, "order by spatial distance", "ORDER BY ST_DISTANCE(${c}, LATLNG(${number}, ${number})) ");
+		result.addSnippet(t, "order by", "ORDER BY ${c}${cursor}");
+		result.addSnippet(t, "order by, descending", "ORDER BY ${c}${cursor} DESC${cursor}");
+		result.addSnippet(t, "order by spatial distance", "ORDER BY ST_DISTANCE(${c}, LATLNG(${number1}, ${number2}${cursor})) ");
 		
 		return result;
 	}
@@ -112,7 +111,7 @@ public class Snippets {
 	private Completions getGroupByExpressions() {
 		Completions result =  new Completions(noBoundaries);
 		SqlCompletionType t = SqlCompletionType.groupBy;
-		result.addSnippet(t, "group by", "GROUP BY ${c} ");
+		result.addSnippet(t, "group by", "GROUP BY ${c}${cursor} ");
 		return result;
 	}
 	

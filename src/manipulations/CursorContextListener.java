@@ -76,6 +76,9 @@ public class CursorContextListener extends SyntaxElementListener implements OnEr
 		super(parser, tokens);
 		this.cursorIndex = cursorIndex;
 		this.parser = parser;
+
+		if (debug)
+			System.out.println(String.format("\ngetting context at position %d", cursorIndex));
 	}
 
 	@Override

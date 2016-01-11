@@ -227,10 +227,30 @@ public class QueryManipulator {
 		return false;
 	}
 
-	private int placeIntoValidTokenRange(String query, int cursorPos) {
-		if (cursorPos > 0 && cursorPos <= query.length() && !symBoundary(query.charAt(cursorPos - 1)))
-			cursorPos--;
+	private int moveToLastButOneBlank(String query, int cursorPos)
+	{
+		if (! cursorInValidRange(query, cursorPos) || cursorPos < 1 || query.length() < 2)
+			return cursorPos;
+		
+		while (cursorPos >= 1 && query.charAt(cursorPos) == ' ' && query.charAt(cursorPos - 1) == ' ') 
+			cursorPos --;
+			
+		return cursorPos;
+	}
 
+	private boolean cursorInValidRange(String query, int cursorPos) {
+		return cursorPos > 0 && cursorPos < query.length();
+	}
+	
+	private int placeIntoValidTokenRange(String query, int cursorPos) {
+		if (StringUtil.emptyOrNull(query))
+			return cursorPos;
+		
+		cursorPos = moveToLastButOneBlank(query, cursorPos);
+		
+		if (cursorInValidRange(query, cursorPos) && !symBoundary(query.charAt(cursorPos - 1)))
+			cursorPos--;
+		
 		return cursorPos;
 	}
 

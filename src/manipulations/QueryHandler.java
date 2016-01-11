@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Observable;
 import java.util.Vector;
-
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableModel;
 
@@ -95,8 +94,6 @@ public class QueryHandler extends Observable {
 		loadTableCaches(reload);
 	}
 
-	private static int lengthTableId = 41;
-
 	private Optional<TableReference> resolveTableReferenceInQuery(NameRecognitionTable tableRecognized) {
 		if (!tableRecognized.TableName().isPresent())
 			return Optional.absent();
@@ -125,9 +122,9 @@ public class QueryHandler extends Observable {
 	}
 
 	private Optional<TableInfo> resolveExternalTable(String tableId) {
-		if (tableId.length() < Const.LEN_TABLEID)
+		if (!validTableId(tableId))
 			return Optional.absent();
-		
+
 		Optional<TableInfo> result = probeCachedExternalTables(tableId);
 		if (result.isPresent())
 			return result;
@@ -136,6 +133,10 @@ public class QueryHandler extends Observable {
 			return Optional.absent();
 
 		return probeExternalTable(tableId);
+	}
+
+	private boolean validTableId(String tableId) {
+		return (tableId.length() == Const.LEN_TABLEID) && tableId.indexOf(" ") < 0;
 	}
 
 	private boolean probeInexistingExternaTables(String tableId) {
@@ -169,6 +170,7 @@ public class QueryHandler extends Observable {
 	private final static int idxName = 1;
 	private final static int idxType = 2;
 	private final static int countResultColumns = 3;
+
 	private TableInfo createTableInfo(String tableId, TableModel tableModel) {
 		if (tableModel.getRowCount() == 0)
 			return null;
@@ -269,7 +271,7 @@ public class QueryHandler extends Observable {
 		RefactoredSql r = createManipulator(query).refactorQuery();
 
 		String prepared = r.refactored;
-		if (! Op.in(statementType,  StatementType.DESCRIBE, StatementType.SHOW))
+		if (!Op.in(statementType, StatementType.DESCRIBE, StatementType.SHOW))
 			prepared = addLimit(prepared);
 
 		if (r.problemsEncountered.isPresent())
@@ -317,72 +319,49 @@ public class QueryHandler extends Observable {
 		logger.Info(String.format("running: '%s'", query));
 
 		try {
-			QueryManipulator ftr = createManipulator(query);
-			switch (ftr.statementType) {
-			case ALTER:
-				return hdlAlterTable(ftr, execute);
-
-			case SELECT:
-				return hdlQuery(ftr.statementType, query, execute);
-
-			// case INSERT:
-			// return hdlQuery(query, ftr, preview);
-			//
-			// case UPDATE:
-			// return hdlQuery(query, ftr, preview);
-			//
-			// case DELETE:
-			// return hdlQuery(query, ftr, preview);
-
-			case CREATE_VIEW:
-				return hdlQuery(ftr.statementType, query, execute);
-
-			case DROP:
-				return hdlDropTable(ftr, execute);
-
-			case DESCRIBE:
-				return hdlQuery(ftr.statementType, query, execute);
-
-			case SHOW:
-				return hdlQuery(ftr.statementType, query, execute);
-
-				
-			default:
-				return packQueryResult("Statement not covered: " + query);
-			}
+			return innerGetQueryResult(query);
 		} catch (Exception e) {
-			e.printStackTrace();
 			return packQueryResult(e.getMessage());
 		}
-
 	}
 
-	private static QueryResult tableNotFound = packQueryResult("table not found");
+	private QueryResult innerGetQueryResult(String query) {
+		QueryManipulator ftr = createManipulator(query);
+		switch (ftr.statementType) {
+		case ALTER:
+			return hdlAlterTable(ftr, execute);
 
-	private QueryResult hdlDescribeTable(String query, boolean preview) {
-		if (preview)
-			return packQueryResult(query);
+		case SELECT:
+			return hdlQuery(ftr.statementType, query, execute);
 
-		QueryManipulator m = createManipulator(query);
-		Optional<String> val = m.getCursorContext(query.trim().length() - 2).underlyingTableName;
+		// case INSERT:
+		// return hdlQuery(query, ftr, preview);
+		//
+		// case UPDATE:
+		// return hdlQuery(query, ftr, preview);
+		//
+		// case DELETE:
+		// return hdlQuery(query, ftr, preview);
 
-		if (!val.isPresent())
-			return tableNotFound;
+		case CREATE_VIEW:
+			return hdlQuery(ftr.statementType, query, execute);
 
-		TableInfo info = null;
-		info = resolveTableInfo(val.get());
-		if (info != null)
-			return packQueryResult(getColumnInfo(info));
-		else
-			return tableNotFound;
+		case DROP:
+			return hdlDropTable(ftr, execute);
+
+		case DESCRIBE:
+			return hdlQuery(ftr.statementType, query, execute);
+
+		case SHOW:
+			return hdlQuery(ftr.statementType, query, execute);
+
+		default:
+			return packQueryResult("Statement not covered: " + query);
+		}
 	}
 
 	private static QueryResult packQueryResult(String msg) {
 		return new QueryResult(HttpStatus.SC_BAD_REQUEST, null, msg);
-	}
-
-	private QueryResult packQueryResult(TableModel model) {
-		return new QueryResult(HttpStatus.SC_OK, model, null);
 	}
 
 	public String previewExecutedSql(String query) {
@@ -416,8 +395,7 @@ public class QueryHandler extends Observable {
 
 		case SHOW:
 			return hdlQuery(ftr.statementType, query, preview).message.or("");
-			
-			
+
 		default:
 			return "Statement not covered: " + query;
 		}
@@ -498,22 +476,6 @@ public class QueryHandler extends Observable {
 		for (SyntaxElement s : syntaxElements)
 			System.out.println(String.format("%s %s %d-%d %s", s.value.replace("\n", "NL"), s.type.name(), s.from, s.to,
 					s.hasSemanticError() ? "<bad>" : "ok"));
-	}
-
-	private boolean nameIsActuallyAnId(String tableName, Optional<String> id) {
-		return !id.isPresent() && tableName.length() == lengthTableId;
-	}
-
-	private Optional<String> resolveTableId(String tableName) {
-		Optional<String> resultId = tableNameToIdMapper.idForName(tableName);
-		if (resultId.isPresent())
-			return resultId;
-
-		Optional<TableInfo> info = getTableInfoAsOptional(tableName);
-		if (info.isPresent())
-			return Optional.of(info.get().id);
-		else
-			return Optional.absent();
 	}
 
 	private List<String> getColumnNames(List<ColumnInfo> columns) {

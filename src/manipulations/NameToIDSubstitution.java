@@ -11,6 +11,7 @@ import com.google.common.base.Optional;
 import cg.common.check.Check;
 import parser.FusionTablesSqlBaseListener;
 import parser.FusionTablesSqlParser;
+import util.StringUtil;
 
 public class NameToIDSubstitution extends FusionTablesSqlBaseListener {
 
@@ -36,7 +37,7 @@ public class NameToIDSubstitution extends FusionTablesSqlBaseListener {
 	public void enterString_literal(FusionTablesSqlParser.String_literalContext ctx) {
 
 		if (Util.isTableName(ctx)) {			
-			String tableName = ctx.getText();	
+			String tableName = StringUtil.stripQuotes(ctx.getText());	
 			Optional<String> tableId = mapper.resolveTableId(tableName);
 
 			if (tableId.isPresent()) {

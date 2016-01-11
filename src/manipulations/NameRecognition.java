@@ -9,6 +9,7 @@ import com.google.common.base.Optional;
 
 import cg.common.check.Check;
 import gc.common.structures.OrderedIntTuple;
+import util.StringUtil;
 
 public class NameRecognition {
 
@@ -45,7 +46,7 @@ public class NameRecognition {
 		setTotalBoundaries(token);
 
 		if (state.in(NameRecognitionState.NAME1, NameRecognitionState.NAME2)) {
-			names.put(state, token.getText());
+			names.put(state, StringUtil.stripQuotes(token.getText()));
 			boundaries.put(state, OrderedIntTuple.create(token.getStartIndex(), token.getStopIndex()));
 		}
 	};
