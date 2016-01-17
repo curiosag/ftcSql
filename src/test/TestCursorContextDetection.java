@@ -2,20 +2,18 @@ package test;
 
 import org.junit.Test;
 
-import cg.common.check.Check;
-import interfaces.SqlCompletionType;
 import manipulations.CursorContext;
 import manipulations.QueryPatching;
-import parser.Ctx;
-import util.StringUtil;
 
 import static org.junit.Assert.*;
 
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.cg.ftc.shared.interfaces.SqlCompletionType;
 
 public class TestCursorContextDetection {
 	private boolean debug = false;
 
+	@SuppressWarnings("unused")
 	private boolean withinContext(CursorContext context, ParserRuleContext... candidates) {
 		if (debug) {
 			System.out.println("--- finding any of ---");

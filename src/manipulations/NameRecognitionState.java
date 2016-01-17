@@ -3,8 +3,8 @@ package manipulations;
 import java.util.HashMap;
 import java.util.Map;
 
-import cg.common.check.Check;
-import uglySmallThings.Const;
+import org.cg.common.check.Check;
+import org.cg.ftc.shared.uglySmallThings.Const;
 
 public enum NameRecognitionState {
 

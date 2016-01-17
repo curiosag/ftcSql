@@ -11,14 +11,13 @@ import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.misc.IntervalSet;
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
+import org.cg.common.structures.OrderedIntTuple;
+import org.cg.common.util.Op;
+import org.cg.common.util.StringUtil;
+import org.cg.ftc.parser.FusionTablesSqlParser;
+import org.cg.ftc.shared.uglySmallThings.Const;
 
 import com.google.common.base.Optional;
-
-import gc.common.structures.OrderedIntTuple;
-import parser.FusionTablesSqlParser;
-import uglySmallThings.Const;
-import util.Op;
-import util.StringUtil;
 
 public class CursorContextListener extends SyntaxElementListener implements OnError {
 

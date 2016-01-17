@@ -4,12 +4,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.antlr.v4.runtime.Token;
+import org.cg.common.check.Check;
+import org.cg.common.structures.OrderedIntTuple;
+import org.cg.common.util.StringUtil;
 
 import com.google.common.base.Optional;
-
-import cg.common.check.Check;
-import gc.common.structures.OrderedIntTuple;
-import util.StringUtil;
 
 public class NameRecognition {
 

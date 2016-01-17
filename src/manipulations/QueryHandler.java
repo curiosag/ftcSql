@@ -14,29 +14,30 @@ import javax.swing.table.TableModel;
 
 import org.antlr.v4.runtime.BufferedTokenStream;
 import org.antlr.v4.runtime.Token;
+import org.cg.common.check.Check;
+import org.cg.common.core.Logging;
+import org.cg.common.http.HttpStatus;
+import org.cg.common.structures.StackLight;
+import org.cg.common.util.Op;
+import org.cg.common.util.StringUtil;
+import org.cg.ftc.parser.FusionTablesSqlLexer;
+import org.cg.ftc.shared.interfaces.Connector;
+import org.cg.ftc.shared.interfaces.SyntaxElement;
+import org.cg.ftc.shared.interfaces.SyntaxElementType;
+import org.cg.ftc.shared.structures.ClientSettings;
+import org.cg.ftc.shared.structures.ColumnInfo;
+import org.cg.ftc.shared.structures.ConnectionStatus;
+import org.cg.ftc.shared.structures.QueryResult;
+import org.cg.ftc.shared.structures.TableInfo;
+import org.cg.ftc.shared.uglySmallThings.Const;
 
 import com.google.common.base.Optional;
 
-import cg.common.check.Check;
-import cg.common.core.Logging;
-import cg.common.http.HttpStatus;
-import gc.common.structures.StackLight;
-import structures.ClientSettings;
-import structures.ColumnInfo;
-import structures.QueryResult;
-import interfaces.Connector;
-import structures.TableInfo;
-import uglySmallThings.Const;
-import interfaces.SyntaxElement;
-import interfaces.SyntaxElementType;
 import manipulations.QueryPatching;
 import manipulations.results.RefactoredSql;
 import manipulations.results.ResolvedTableNames;
 import manipulations.results.TableInfoResolver;
 import manipulations.results.TableReference;
-import parser.FusionTablesSqlLexer;
-import util.Op;
-import util.StringUtil;
 
 public class QueryHandler extends Observable {
 	private boolean debug = Const.debugQueryHandler;
@@ -77,9 +78,10 @@ public class QueryHandler extends Observable {
 		this.settings = settings;
 	}
 
-	public void reset(Dictionary<String, String> connectionInfo) {
-		connector.reset(connectionInfo);
+	public ConnectionStatus reset(Dictionary<String, String> connectionInfo) {
+		ConnectionStatus result = connector.reset(connectionInfo);
 		reloadTableList();
+		return result;
 	};
 
 	private void log(String msg) {

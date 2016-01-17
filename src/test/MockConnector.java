@@ -7,12 +7,13 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import cg.common.check.Check;
-import cg.common.http.HttpStatus;
-import structures.ColumnInfo;
-import structures.QueryResult;
-import interfaces.Connector;
-import structures.TableInfo;
+import org.cg.common.check.Check;
+import org.cg.common.http.HttpStatus;
+import org.cg.ftc.shared.interfaces.Connector;
+import org.cg.ftc.shared.structures.ColumnInfo;
+import org.cg.ftc.shared.structures.ConnectionStatus;
+import org.cg.ftc.shared.structures.QueryResult;
+import org.cg.ftc.shared.structures.TableInfo;
 
 import static org.junit.Assert.*;
 
@@ -51,11 +52,6 @@ public class MockConnector implements Connector {
 		return result;
 	}
 
-	private MockConnector(Map<String, String> tableNameToIdMap) {
-		Check.notNull(tableNameToIdMap);
-		this.tableNameToIdMap = tableNameToIdMap;
-	}
-
 	@Override
 	public List<TableInfo> getTableInfo() {
 		return tableInfo;
@@ -90,7 +86,8 @@ public class MockConnector implements Connector {
 	}
 
 	@Override
-	public void reset(Dictionary<String, String> connectionInfo) {
+	public ConnectionStatus reset(Dictionary<String, String> connectionInfo) {
+		return new ConnectionStatus(HttpStatus.SC_OK);
 	}
 
 	@Override

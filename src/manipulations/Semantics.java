@@ -1,15 +1,15 @@
 package manipulations;
 
 import java.util.List;
+
+import org.cg.common.check.Check;
+import org.cg.common.util.Op;
+import org.cg.common.util.StringUtil;
+import org.cg.ftc.shared.interfaces.SyntaxElement;
+import org.cg.ftc.shared.interfaces.SyntaxElementType;
 import com.google.common.base.Optional;
 
-import cg.common.check.Check;
-import interfaces.SyntaxElement;
-import interfaces.SyntaxElementType;
 import manipulations.results.TableReference;
-import uglySmallThings.Const;
-import util.Op;
-import util.StringUtil;
 
 public class Semantics {
 

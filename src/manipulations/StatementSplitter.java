@@ -3,10 +3,9 @@ package manipulations;
 import java.util.ArrayList;
 import java.util.List;
 import org.antlr.v4.runtime.BufferedTokenStream;
-
-import cg.common.check.Check;
-import parser.FusionTablesSqlBaseListener;
-import parser.FusionTablesSqlParser;
+import org.cg.common.check.Check;
+import org.cg.ftc.parser.FusionTablesSqlBaseListener;
+import org.cg.ftc.parser.FusionTablesSqlParser;
 
 public class StatementSplitter extends FusionTablesSqlBaseListener {
 

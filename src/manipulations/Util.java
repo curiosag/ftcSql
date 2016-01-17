@@ -13,12 +13,11 @@ import org.antlr.v4.runtime.RuleContext;
 import org.antlr.v4.runtime.atn.PredictionMode;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
-
-import cg.common.check.*;
-import cg.common.core.Logging;
-import parser.FusionTablesSqlLexer;
-import parser.FusionTablesSqlParser;
-import util.StringUtil;
+import org.cg.common.check.*;
+import org.cg.common.core.Logging;
+import org.cg.common.util.StringUtil;
+import org.cg.ftc.parser.FusionTablesSqlLexer;
+import org.cg.ftc.parser.FusionTablesSqlParser;
 
 public class Util {
 

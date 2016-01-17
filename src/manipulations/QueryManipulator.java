@@ -7,28 +7,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import org.antlr.v4.runtime.ANTLRErrorListener;
-import org.antlr.v4.runtime.ConsoleErrorListener;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.antlr.v4.runtime.tree.xpath.XPath;
+import org.cg.common.check.Check;
+import org.cg.common.core.Logging;
+import org.cg.common.util.StringUtil;
+import org.cg.ftc.parser.FusionTablesSqlParser;
+import org.cg.ftc.shared.interfaces.SyntaxElement;
+import org.cg.ftc.shared.uglySmallThings.Const;
 
 import com.google.common.base.Optional;
 
-import cg.common.check.Check;
-import cg.common.core.Logging;
-import structures.TableInfo;
-import uglySmallThings.Const;
-import interfaces.SyntaxElement;
 import manipulations.Util.Stuff;
 import manipulations.results.ParseResult;
 import manipulations.results.RefactoredSql;
 import manipulations.results.ResolvedTableNames;
 import manipulations.results.Splits;
 import manipulations.results.TableInfoResolver;
-import parser.FusionTablesSqlParser;
-import util.StringUtil;
 
 public class QueryManipulator {
 

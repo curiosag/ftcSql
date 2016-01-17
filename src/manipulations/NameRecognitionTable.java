@@ -1,8 +1,8 @@
 package manipulations;
 
-import com.google.common.base.Optional;
+import org.cg.common.structures.OrderedIntTuple;
 
-import gc.common.structures.OrderedIntTuple;
+import com.google.common.base.Optional;
 
 public class NameRecognitionTable extends NameRecognition {
 

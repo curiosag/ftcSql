@@ -3,18 +3,19 @@ package test;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.cg.common.core.SystemLogger;
+import org.cg.common.util.Op;
+import org.cg.common.util.StringUtil;
+import org.cg.ftc.shared.interfaces.SyntaxElement;
+import org.cg.ftc.shared.structures.TableInfo;
+
 import com.google.common.base.Optional;
 
-import cg.common.core.SystemLogger;
-import structures.TableInfo;
-import interfaces.SyntaxElement;
 import manipulations.CursorContext;
 import manipulations.QueryManipulator;
 import manipulations.QueryPatching;
 import manipulations.TableNameToIdMapper;
 import manipulations.results.TableInfoResolver;
-import util.Op;
-import util.StringUtil;
 
 public class Util {
 

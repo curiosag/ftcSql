@@ -9,13 +9,12 @@ import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.misc.IntervalSet;
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.TerminalNode;
-
-import gc.common.structures.Tuple;
-import interfaces.SyntaxElement;
-import interfaces.SyntaxElementType;
-import parser.FusionTablesSqlParser;
-import uglySmallThings.Const;
-import util.CollectionUtil;
+import org.cg.common.structures.Tuple;
+import org.cg.common.util.CollectionUtil;
+import org.cg.ftc.parser.FusionTablesSqlParser;
+import org.cg.ftc.shared.interfaces.SyntaxElement;
+import org.cg.ftc.shared.interfaces.SyntaxElementType;
+import org.cg.ftc.shared.uglySmallThings.Const;
 
 public class SyntaxElementListener extends BaseFtListener implements OnError {
 	private final boolean debug = Const.debugSyntaxElementListener;

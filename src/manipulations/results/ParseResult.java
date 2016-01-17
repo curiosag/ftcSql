@@ -1,8 +1,8 @@
 package manipulations.results;
 
-import com.google.common.base.Optional;
+import org.cg.common.util.OptionalUtil;
 
-import util.OptionalUtil;
+import com.google.common.base.Optional;
 
 public class ParseResult {
 	public final Optional<String> problemsEncountered;

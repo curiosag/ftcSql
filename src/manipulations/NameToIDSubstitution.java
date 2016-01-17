@@ -6,12 +6,12 @@ import java.util.Map;
 
 import org.antlr.v4.runtime.BufferedTokenStream;
 import org.antlr.v4.runtime.TokenStreamRewriter;
-import com.google.common.base.Optional;
+import org.cg.common.check.Check;
+import org.cg.common.util.StringUtil;
+import org.cg.ftc.parser.FusionTablesSqlBaseListener;
+import org.cg.ftc.parser.FusionTablesSqlParser;
 
-import cg.common.check.Check;
-import parser.FusionTablesSqlBaseListener;
-import parser.FusionTablesSqlParser;
-import util.StringUtil;
+import com.google.common.base.Optional;
 
 public class NameToIDSubstitution extends FusionTablesSqlBaseListener {
 

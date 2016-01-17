@@ -20,19 +20,17 @@ import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.pattern.ParseTreeMatch;
 import org.antlr.v4.runtime.tree.pattern.ParseTreePattern;
 import org.antlr.v4.runtime.tree.xpath.XPath;
-
-import parser.FusionTablesSqlLexer;
-import parser.FusionTablesSqlParser;
-import parser.FusionTablesSqlParser.FusionTablesSqlContext;
-import util.*;
-
+import org.cg.common.check.Check;
+import org.cg.common.core.Logging;
+import org.cg.common.core.SystemLogger;
+import org.cg.common.util.*;
+import org.cg.ftc.parser.FusionTablesSqlLexer;
+import org.cg.ftc.parser.FusionTablesSqlParser;
+import org.cg.ftc.parser.FusionTablesSqlParser.FusionTablesSqlContext;
+import org.cg.ftc.shared.interfaces.Connector;
+import org.cg.ftc.shared.interfaces.SyntaxElement;
 import org.junit.Test;
 
-import cg.common.check.Check;
-import cg.common.core.Logging;
-import cg.common.core.SystemLogger;
-import interfaces.Connector;
-import interfaces.SyntaxElement;
 import manipulations.QueryManipulator;
 import manipulations.Util;
 import manipulations.results.*;

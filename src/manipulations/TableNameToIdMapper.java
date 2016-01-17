@@ -5,10 +5,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
-import com.google.common.base.Optional;
+import org.cg.common.check.Check;
+import org.cg.ftc.shared.structures.TableInfo;
 
-import cg.common.check.Check;
-import structures.TableInfo;
+import com.google.common.base.Optional;
 public class TableNameToIdMapper {
 
 	private final Map<String, String> namesToIds;

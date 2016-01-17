@@ -3,11 +3,11 @@ package manipulations;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.google.common.base.Optional;
+import org.cg.common.structures.OrderedIntTuple;
+import org.cg.ftc.shared.interfaces.SqlCompletionType;
+import org.cg.ftc.shared.structures.Completions;
 
-import gc.common.structures.OrderedIntTuple;
-import interfaces.SqlCompletionType;
-import structures.Completions;
+import com.google.common.base.Optional;
 
 
 public class Snippets {

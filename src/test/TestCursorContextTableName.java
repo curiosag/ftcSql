@@ -2,11 +2,11 @@ package test;
 
 import static org.junit.Assert.*;
 
+import org.cg.common.util.Op;
+import org.cg.ftc.shared.interfaces.SqlCompletionType;
 import org.junit.Test;
 
-import interfaces.SqlCompletionType;
 import manipulations.CursorContext;
-import util.Op;
 
 public class TestCursorContextTableName {
 

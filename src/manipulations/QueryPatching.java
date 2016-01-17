@@ -2,18 +2,18 @@ package manipulations;
 
 import java.util.List;
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.cg.common.structures.OrderedIntTuple;
+import org.cg.common.util.StringUtil;
+import org.cg.ftc.shared.interfaces.SqlCompletionType;
+import org.cg.ftc.shared.structures.AbstractCompletion;
+import org.cg.ftc.shared.structures.ColumnInfo;
+import org.cg.ftc.shared.structures.Completions;
+import org.cg.ftc.shared.structures.ModelElementCompletion;
+import org.cg.ftc.shared.structures.TableInfo;
 
 import com.google.common.base.Optional;
-import gc.common.structures.OrderedIntTuple;
 
-import interfaces.SqlCompletionType;
 import manipulations.results.TableInfoResolver;
-import structures.AbstractCompletion;
-import structures.ColumnInfo;
-import structures.Completions;
-import structures.ModelElementCompletion;
-import structures.TableInfo;
-import util.StringUtil;
 
 public class QueryPatching {
 	

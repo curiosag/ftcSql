@@ -1,6 +1,11 @@
 package test;
 
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.cg.common.check.Check;
+import org.cg.common.util.Op;
+import org.cg.ftc.shared.interfaces.SqlCompletionType;
+import org.cg.ftc.shared.structures.AbstractCompletion;
+import org.cg.ftc.shared.structures.ModelElementCompletion;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -8,16 +13,10 @@ import java.util.List;
 
 import com.google.common.base.Optional;
 
-import cg.common.check.Check;
-import structures.AbstractCompletion;
-import structures.ModelElementCompletion;
-import interfaces.SqlCompletionType;
-import interfaces.SyntaxElement;
 import manipulations.CursorContext;
 import manipulations.CursorContextListener;
 import manipulations.QueryManipulator;
 import manipulations.QueryPatching;
-import util.Op;
 
 public class TestCursorContextColumn {
 

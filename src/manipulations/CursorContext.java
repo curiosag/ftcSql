@@ -7,18 +7,17 @@ import java.util.Stack;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
+import org.cg.common.check.Check;
+import org.cg.common.structures.OrderedIntTuple;
+import org.cg.common.structures.Tuple;
+import org.cg.common.util.CollectionUtil;
+import org.cg.common.util.Op;
+import org.cg.ftc.parser.Ctx;
+import org.cg.ftc.shared.interfaces.SqlCompletionType;
+import org.cg.ftc.shared.interfaces.SyntaxElement;
+import org.cg.ftc.shared.uglySmallThings.Const;
 
 import com.google.common.base.Optional;
-
-import cg.common.check.Check;
-import gc.common.structures.OrderedIntTuple;
-import gc.common.structures.Tuple;
-import interfaces.SqlCompletionType;
-import interfaces.SyntaxElement;
-import parser.Ctx;
-import uglySmallThings.Const;
-import util.CollectionUtil;
-import util.Op;
 
 public class CursorContext {
 	private final boolean debug = Const.debugCursorContext;
