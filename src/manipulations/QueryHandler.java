@@ -52,7 +52,7 @@ public class QueryHandler extends Observable {
 	private final Map<String, TableInfo> exteranlTableIdToTableInfo = new HashMap<String, TableInfo>();
 	private final List<String> inexistingExternalTableIds = new ArrayList<String>();
 
-	private TableNameToIdMapper tableNameToIdMapper;
+	private TableNameToIdMapper tableNameToIdMapper = new TableNameToIdMapper();
 	private final ClientSettings settings;
 
 	private final TableInfoResolver tableInfoResolver = new TableInfoResolver() {

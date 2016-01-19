@@ -18,6 +18,11 @@ public class TableNameToIdMapper {
 
 		this.namesToIds = namesToIds;
 	}
+	
+	public TableNameToIdMapper() {
+
+		this.namesToIds = new HashMap<String, String>();
+	}
 
 	public TableNameToIdMapper(List<TableInfo> tables) {
 		Check.notNull(tables);
